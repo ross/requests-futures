@@ -7,7 +7,7 @@ Small add-on for the requests_ http library. Makes use of python 3.3's
 The additional API is minimal and obeys the standard behavior of futures. The
 synchronous code of two request show below.
 
-.. code-block: python
+.. code-block:: python
 
     from requests import Session
 
@@ -25,7 +25,7 @@ synchronous code of two request show below.
 The above requests can be made asynchronous by making the following
 modifications.
 
-.. code-block: python
+.. code-block:: python
 
     from requests_futures.sessions import FuturesSession
 
@@ -47,7 +47,7 @@ By default a ThreadPoolExecutor is created with 2 workers. If you would like to
 adjust that value or share a executor across multiple sessions you can provide
 one to the FuturesSession constructor.
 
-.. code-block: python
+.. code-block:: python
 
     from concurrent.futures import ThreadPoolExecutor
     from requests_futures.sessions import FuturesSession
@@ -68,7 +68,7 @@ background_callback, which allows you to work with the Response objects in the
 background thread. This can be useful for shifting work out of the foreground,
 for a simple example take json parsing.
 
-.. code-block: python
+.. code-block:: python
 
     from pprint import pprint
     from requests_futures.sessions import FuturesSession
