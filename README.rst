@@ -1,7 +1,7 @@
 Requests-Futures: Asynchronous Python HTTP Requests for Humans
 ==============================================================
 
-Small add-on for the requests_ http library. Makes use of python 3.3's
+Small add-on for the requests_ http library. Makes use of python 3.2's
 `concurrent.futures`_ or the backport_ for prior versions of python.
 
 The additional API is minimal and obeys the standard behavior of futures. The
@@ -90,7 +90,7 @@ for a simple example take json parsing.
 Installation
 ============
 
-Python 3.3:
+Python >= 3.2:
 
     pip install requests requests-futures
 

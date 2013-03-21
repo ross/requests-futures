@@ -22,7 +22,7 @@ requires = [
     'requests>=1.0.0'
 ]
 
-if sys.version_info < (3, 3):
+if sys.version_info < (3, 2):
     requires.append('futures>=2.1.3')
 
 setup(
