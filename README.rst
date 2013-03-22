@@ -1,11 +1,15 @@
-Requests-Futures: Asynchronous Python HTTP Requests for Humans
-==============================================================
+Asynchronous Python HTTP Requests for Humans
+============================================
 
-Small add-on for the requests_ http library. Makes use of python 3.2's
+.. image:: https://travis-ci.org/ross/requests-futures.png?branch=master
+        :target: https://travis-ci.org/ross/requests-futures
+
+Small add-on for the python requests_ http library. Makes use of python 3.2's
 `concurrent.futures`_ or the backport_ for prior versions of python.
 
-The additional API is minimal and obeys the standard behavior of futures. The
-synchronous code of two request show below.
+The additional API and changes are minimal and strives to avoid surprises.
+
+The following synchronous code:
 
 .. code-block:: python
 
@@ -22,8 +26,9 @@ synchronous code of two request show below.
     print('response two status: {0}'.format(response_two.status_code))
     print(response_two.content)
 
-The above requests can be made asynchronous by making the following
-modifications.
+Can be translated to make use of futures, and thus be asynchronous by creating
+a FuturesSession and catching the returned Future in place of Response. The
+Response can be retrieved by calling the result method on the Future:
 
 .. code-block:: python
 
@@ -71,7 +76,7 @@ moved there.
 Working in the Background
 =========================
 
-There is one additional parameter to the various request function,
+There is one additional parameter to the various request functions,
 background_callback, which allows you to work with the Response objects in the
 background thread. This can be useful for shifting work out of the foreground,
 for a simple example take json parsing.

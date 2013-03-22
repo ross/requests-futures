@@ -4,9 +4,8 @@ python:
   - 3.2
   - 3.3
 env: HTTPBIN_URL=http://httpbin.org/
-script: make test
-install:
-  - make test-deps
+script: pip install -r requirements-2.7.txt
+install: python test_requests_futures.py
 notifications:
   email:
     - rwmcfa1@neces.com
