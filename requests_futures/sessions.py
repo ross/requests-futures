@@ -47,10 +47,8 @@ class FuturesSession(Session):
         """
         func = sup = super(FuturesSession, self).request
 
-        background_callback = kwargs.get('background_callback', None)
+        background_callback = kwargs.pop('background_callback', None)
         if background_callback:
-            del kwargs['background_callback']
-
             def wrap(*args_, **kwargs_):
                 resp = sup(*args_, **kwargs_)
                 background_callback(self, resp)
