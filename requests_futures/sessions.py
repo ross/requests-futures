@@ -25,15 +25,21 @@ from requests import Session
 
 class FuturesSession(Session):
 
-    def __init__(self, executor=None, *args, **kwargs):
+    def __init__(self, executor=None, max_workers=2, *args, **kwargs):
         """Creates a FuturesSession
 
-        NOTE: ProcessPoolExecutor is not supported b/c Response objects are not
-        picklable
+        Notes
+        ~~~~~
+
+        * ProcessPoolExecutor is not supported b/c Response objects are
+          not picklable.
+
+        * If you provide both `executor` and `max_workers`, the latter is
+          ignored and provided executor is used as is.
         """
         super(FuturesSession, self).__init__(*args, **kwargs)
         if executor is None:
-            executor = ThreadPoolExecutor(max_workers=2)
+            executor = ThreadPoolExecutor(max_workers=max_workers)
         self.executor = executor
 
     def request(self, *args, **kwargs):
