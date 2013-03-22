@@ -95,7 +95,7 @@ for a simple example take json parsing.
     future = session.get('http://httpbin.org/get', background_callback=bg_cb)
     # do some other stuff, send some more requests while this one works
     response = future.result()
-    print('response status {0}'.format(response.status_code)
+    print('response status {0}'.format(response.status_code))
     # data will have been attached to the response object in the background
     pprint(response.data)
 
