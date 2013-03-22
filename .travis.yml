@@ -4,8 +4,8 @@ python:
   - 3.2
   - 3.3
 env: HTTPBIN_URL=http://httpbin.org/
-script: pip install -r requirements-2.7.txt
-install: python test_requests_futures.py
+script: python test_requests_futures.py
+install: pip install -r requirements-2.7.txt
 notifications:
   email:
     - rwmcfa1@neces.com
