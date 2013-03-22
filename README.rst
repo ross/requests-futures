@@ -55,6 +55,14 @@ one to the FuturesSession constructor.
     session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
     # ...
 
+As a shortcut in case of just increasing workers number you can pass
+`max_workers` straight to the `FuturesSession` constructor:
+
+.. code-block:: python
+
+    from requests_futures.sessions import FuturesSession
+    session = FuturesSession(max_workers=10)
+
 That's it. The api of requests.Session is preserved without any modifications
 beyond returning a Future rather than Response. As with all futures exceptions
 are shifted (thrown) to the future.result() call so try/except blocks should be

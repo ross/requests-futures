@@ -53,6 +53,19 @@ class RequestsTestCase(TestCase):
             resp = future.result()
         self.assertEqual('boom', cm.exception.args[0])
 
+    def test_max_workers(self):
+        """ Tests the `max_workers` shortcut. """
+        from concurrent.futures import ThreadPoolExecutor
+        session = FuturesSession()
+        self.assertEqual(session.executor._max_workers, 2)
+        session = FuturesSession(max_workers=5)
+        self.assertEqual(session.executor._max_workers, 5)
+        session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
+        self.assertEqual(session.executor._max_workers, 10)
+        session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10),
+                                 max_workers=5)
+        self.assertEqual(session.executor._max_workers, 10)
+
 
 if __name__ == '__main__':
     main()
