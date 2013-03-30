@@ -103,13 +103,7 @@ for a simple example take json parsing.
 Installation
 ============
 
-Python >= 3.2:
-
-    pip install requests requests-futures
-
-Prior versions:
-
-    pip install futures requests requests-futures
+    pip install requests-futures
 
 .. _`requests`: https://github.com/kennethreitz/requests
 .. _`concurrent.futures`: http://docs.python.org/dev/library/concurrent.futures.html

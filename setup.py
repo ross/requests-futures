@@ -33,7 +33,7 @@ setup(
     author='Ross McFarland',
     author_email='rwmcfa1@neces.com',
     packages=packages,
-    package_data={'': ['LICENSE'], 'requests': ['*.pem']},
+    package_data={'': ['LICENSE', 'README.rst'], 'requests': ['*.pem']},
     package_dir={'requests_futures': 'requests_futures'},
     include_package_data=True,
     install_requires=requires,
