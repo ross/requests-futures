@@ -1,0 +1,1 @@
+include README.rst LICENSE test_requests_futures.py requirements-python-2.7.txt requirements-python-3.2.txt

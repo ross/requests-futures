@@ -34,9 +34,11 @@ setup(
     author_email='rwmcfa1@neces.com',
     packages=packages,
     package_dir={'requests_futures': 'requests_futures'},
+    package_data={'requests_futures': ['LICENSE', 'README.rst']},
     include_package_data=True,
     install_requires=requires,
     license='Apache License v2',
+    url='https://github.com/ross/requests-futures',
     zip_safe=False,
     classifiers=(
         'Development Status :: 5 - Production/Stable',
