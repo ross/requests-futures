@@ -10,7 +10,7 @@ async requests HTTP library
 """
 
 __title__ = 'requests-futures'
-__version__ = '0.9.3'
+__version__ = '0.9.4'
 __build__ = 0x000000
 __author__ = 'Ross McFarland'
 __license__ = 'Apache 2.0'
