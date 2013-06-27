@@ -66,6 +66,19 @@ class RequestsTestCase(TestCase):
                                  max_workers=5)
         self.assertEqual(session.executor._max_workers, 10)
 
+    def test_redirect(self):
+        """ Tests for the ability to cleanly handle redirects. """
+        sess = FuturesSession()
+        future = sess.get(httpbin('redirect-to?url=get'))
+        self.assertIsInstance(future, Future)
+        resp = future.result()
+        self.assertIsInstance(resp, Response)
+        self.assertEqual(200, resp.status_code)
+
+        future = sess.get(httpbin('redirect-to?url=status/404'))
+        resp = future.result()
+        self.assertEqual(404, resp.status_code)
+
 
 if __name__ == '__main__':
     main()
