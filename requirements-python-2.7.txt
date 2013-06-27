@@ -1,2 +1,2 @@
 futures
-requests
+requests>=1.2.0
