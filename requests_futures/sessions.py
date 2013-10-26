@@ -22,6 +22,7 @@ releases of python.
 
 from concurrent.futures import ThreadPoolExecutor
 from requests import Session
+from requests.adapters import DEFAULT_POOLSIZE, HTTPAdapter
 
 class FuturesSession(Session):
 
@@ -41,6 +42,12 @@ class FuturesSession(Session):
         if executor is None:
             executor = ThreadPoolExecutor(max_workers=max_workers)
         self.executor = executor
+        # set connection pool size equal to max_workers if needed
+        max = max_workers if executor is None else executor._max_workers
+        if max > DEFAULT_POOLSIZE:
+            adapter_kwargs = dict(pool_connections=max, pool_maxsize=max)
+            self.mount('https://', HTTPAdapter(**adapter_kwargs))
+            self.mount('http://', HTTPAdapter(**adapter_kwargs))
 
     def request(self, *args, **kwargs):
         """Maintains the existing api for Session.request.
