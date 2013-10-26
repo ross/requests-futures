@@ -22,6 +22,7 @@ releases of python.
 
 from concurrent.futures import ThreadPoolExecutor
 from requests import Session
+from requests.adapters import DEFAULT_POOLSIZE, HTTPAdapter
 
 class FuturesSession(Session):
 
@@ -40,6 +41,13 @@ class FuturesSession(Session):
         super(FuturesSession, self).__init__(*args, **kwargs)
         if executor is None:
             executor = ThreadPoolExecutor(max_workers=max_workers)
+            # set connection pool size equal to max_workers if needed
+            if max_workers > DEFAULT_POOLSIZE:
+                adapter_kwargs = dict(pool_connections=max_workers,
+                                      pool_maxsize=max_workers)
+                self.mount('https://', HTTPAdapter(**adapter_kwargs))
+                self.mount('http://', HTTPAdapter(**adapter_kwargs))
+
         self.executor = executor
 
     def request(self, *args, **kwargs):
