@@ -41,13 +41,14 @@ class FuturesSession(Session):
         super(FuturesSession, self).__init__(*args, **kwargs)
         if executor is None:
             executor = ThreadPoolExecutor(max_workers=max_workers)
+            # set connection pool size equal to max_workers if needed
+            if max_workers > DEFAULT_POOLSIZE:
+                adapter_kwargs = dict(pool_connections=max_workers,
+                                      pool_maxsize=max_workers)
+                self.mount('https://', HTTPAdapter(**adapter_kwargs))
+                self.mount('http://', HTTPAdapter(**adapter_kwargs))
+
         self.executor = executor
-        # set connection pool size equal to max_workers if needed
-        max = max_workers if executor is None else executor._max_workers
-        if max > DEFAULT_POOLSIZE:
-            adapter_kwargs = dict(pool_connections=max, pool_maxsize=max)
-            self.mount('https://', HTTPAdapter(**adapter_kwargs))
-            self.mount('http://', HTTPAdapter(**adapter_kwargs))
 
     def request(self, *args, **kwargs):
         """Maintains the existing api for Session.request.
