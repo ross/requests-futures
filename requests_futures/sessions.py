@@ -59,8 +59,14 @@ class FuturesSession(Session):
         response in the background, e.g. call resp.json() so that json parsing
         happens in the background thread.
         """
-        func = sup = super(FuturesSession, self).request
+        sup = super(FuturesSession, self).request
+        return self._wrap_super_func(sup, *args, **kwargs)
 
+    def send(self, *args, **kwargs):
+        sup = super(FuturesSession, self).send
+        return self._wrap_super_func(sup, *args, **kwargs)
+
+    def _wrap_super_func(self, sup, *args, **kwargs):
         background_callback = kwargs.pop('background_callback', None)
         if background_callback:
             def wrap(*args_, **kwargs_):
@@ -69,5 +75,8 @@ class FuturesSession(Session):
                 return resp
 
             func = wrap
+        else:
+            func = sup
 
         return self.executor.submit(func, *args, **kwargs)
+
