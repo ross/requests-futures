@@ -51,6 +51,16 @@ class FuturesSession(Session):
         self.executor = executor
 
     def request(self, *args, **kwargs):
+        background_callback = kwargs.pop('background_callback', None)
+        if background_callback:
+
+            def adapter(resp, *args, **kwargs):
+                background_callback(self, resp)
+
+            kwargs['hooks'] = {'response': adapter}
+        return super(FuturesSession, self).request(*args, **kwargs)
+
+    def send(self, *args, **kwargs):
         """Maintains the existing api for Session.request.
 
         Used by all of the higher level methods, e.g. Session.get.
@@ -59,7 +69,7 @@ class FuturesSession(Session):
         response in the background, e.g. call resp.json() so that json parsing
         happens in the background thread.
         """
-        func = sup = super(FuturesSession, self).request
+        func = sup = super(FuturesSession, self).send
 
         background_callback = kwargs.pop('background_callback', None)
         if background_callback:

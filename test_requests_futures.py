@@ -4,7 +4,7 @@
 """Tests for Requests."""
 
 from concurrent.futures import Future
-from requests import Response
+from requests import Request, Response
 from os import environ
 from requests_futures.sessions import FuturesSession
 from unittest import TestCase, main
@@ -78,6 +78,27 @@ class RequestsTestCase(TestCase):
         future = sess.get(httpbin('redirect-to?url=status/404'))
         resp = future.result()
         self.assertEqual(404, resp.status_code)
+
+    def test_send(self):
+        session = FuturesSession()
+
+        # stand alone prepared request, no sesion/cookies etc.
+        req = Request('GET', httpbin('get'))
+        prepared = req.prepare()
+        future = session.send(prepared)
+        self.assertIsInstance(future, Future)
+        resp = future.result()
+        self.assertIsInstance(resp, Response)
+        self.assertEqual(200, resp.status_code)
+
+        # session based prepared request, cookies etc included.
+        prepared = session.prepare_request(req)
+        prepared = req.prepare()
+        future = session.send(prepared)
+        self.assertIsInstance(future, Future)
+        resp = future.result()
+        self.assertIsInstance(resp, Response)
+        self.assertEqual(200, resp.status_code)
 
 
 if __name__ == '__main__':
