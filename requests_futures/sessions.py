@@ -24,6 +24,7 @@ from concurrent.futures import ThreadPoolExecutor
 from requests import Session
 from requests.adapters import DEFAULT_POOLSIZE, HTTPAdapter
 
+
 class FuturesSession(Session):
 
     def __init__(self, executor=None, max_workers=2, *args, **kwargs):
@@ -71,3 +72,9 @@ class FuturesSession(Session):
             func = wrap
 
         return self.executor.submit(func, *args, **kwargs)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.executor.shutdown()

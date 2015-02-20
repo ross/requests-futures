@@ -11,6 +11,7 @@ from unittest import TestCase, main
 
 HTTPBIN = environ.get('HTTPBIN_URL', 'http://httpbin.org/')
 
+
 def httpbin(*suffix):
     """Returns url for HTTPBIN resource."""
     return HTTPBIN + '/'.join(suffix)
@@ -78,6 +79,30 @@ class RequestsTestCase(TestCase):
         future = sess.get(httpbin('redirect-to?url=status/404'))
         resp = future.result()
         self.assertEqual(404, resp.status_code)
+
+    def test_context(self):
+
+        class FuturesSessionTestHelper(FuturesSession):
+
+            def __init__(self, *args, **kwargs):
+                super(FuturesSessionTestHelper, self).__init__(*args, **kwargs)
+                self._exit_called = False
+
+            def __exit__(self, *args, **kwargs):
+                self._exit_called = True
+                return super(FuturesSessionTestHelper, self).__exit__(*args,
+                                                                      **kwargs)
+
+        passout = None
+        with FuturesSessionTestHelper() as sess:
+            passout = sess
+            future = sess.get(httpbin('get'))
+            self.assertIsInstance(future, Future)
+            resp = future.result()
+            self.assertIsInstance(resp, Response)
+            self.assertEqual(200, resp.status_code)
+
+        self.assertTrue(passout._exit_called)
 
 
 if __name__ == '__main__':
