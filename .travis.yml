@@ -3,6 +3,8 @@ python:
   - 2.7
   - 3.2
   - 3.3
+  - 3.4
+  - 3.5
 env: HTTPBIN_URL=http://httpbin.org/
 script: python test_requests_futures.py
 install: pip install -r requirements-python-2.7.txt
