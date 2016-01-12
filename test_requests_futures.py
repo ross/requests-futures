@@ -4,7 +4,7 @@
 """Tests for Requests."""
 
 from concurrent.futures import Future
-from requests import Response
+from requests import Response, session
 from os import environ
 from requests_futures.sessions import FuturesSession
 from unittest import TestCase, main
@@ -53,6 +53,18 @@ class RequestsTestCase(TestCase):
         with self.assertRaises(Exception) as cm:
             resp = future.result()
         self.assertEqual('boom', cm.exception.args[0])
+
+    def test_supplied_session(self):
+        """ Tests the `session` keyword argument. """
+        requests_session = session()
+        requests_session.headers['Foo'] = 'bar'
+        sess = FuturesSession(session=requests_session)
+        future = sess.get(httpbin('headers'))
+        self.assertIsInstance(future, Future)
+        resp = future.result()
+        self.assertIsInstance(resp, Response)
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual(resp.json()['headers']['Foo'], 'bar')
 
     def test_max_workers(self):
         """ Tests the `max_workers` shortcut. """

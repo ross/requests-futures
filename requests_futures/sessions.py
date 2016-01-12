@@ -27,7 +27,8 @@ from requests.adapters import DEFAULT_POOLSIZE, HTTPAdapter
 
 class FuturesSession(Session):
 
-    def __init__(self, executor=None, max_workers=2, *args, **kwargs):
+    def __init__(self, executor=None, max_workers=2, session=None, *args,
+                 **kwargs):
         """Creates a FuturesSession
 
         Notes
@@ -50,6 +51,7 @@ class FuturesSession(Session):
                 self.mount('http://', HTTPAdapter(**adapter_kwargs))
 
         self.executor = executor
+        self.session = session
 
     def request(self, *args, **kwargs):
         """Maintains the existing api for Session.request.
@@ -60,7 +62,10 @@ class FuturesSession(Session):
         response in the background, e.g. call resp.json() so that json parsing
         happens in the background thread.
         """
-        func = sup = super(FuturesSession, self).request
+        if self.session:
+            func = sup = self.session.request
+        else:
+            func = sup = super(FuturesSession, self).request
 
         background_callback = kwargs.pop('background_callback', None)
         if background_callback:
