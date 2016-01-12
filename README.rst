@@ -68,6 +68,15 @@ As a shortcut in case of just increasing workers number you can pass
     from requests_futures.sessions import FuturesSession
     session = FuturesSession(max_workers=10)
 
+FutureSession will use an existing session object if supplied:
+
+.. code-block:: python
+
+    from requests import session
+    from requests_futures.sessions import FuturesSession
+    my_session = session()
+    future_session = FuturesSession(session=my_session)
+
 That's it. The api of requests.Session is preserved without any modifications
 beyond returning a Future rather than Response. As with all futures exceptions
 are shifted (thrown) to the future.result() call so try/except blocks should be
