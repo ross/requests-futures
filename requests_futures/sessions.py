@@ -19,10 +19,17 @@ releases of python.
     print(response.content)
 
 """
-
 from concurrent.futures import ThreadPoolExecutor
+import functools
+
 from requests import Session
 from requests.adapters import DEFAULT_POOLSIZE, HTTPAdapter
+
+
+def wrap(self, sup, background_callback, *args_, **kwargs_):
+    """ A global top-level is required for ProcessPoolExecutor """
+    resp = sup(*args_, **kwargs_)
+    return background_callback(self, resp) or resp
 
 
 class FuturesSession(Session):
@@ -33,9 +40,12 @@ class FuturesSession(Session):
 
         Notes
         ~~~~~
+        * `ProcessPoolExecutor` may be used with Python > 3.3.5;
+          however, if `background_callback` function is given, it must be
+          pickle-able (e.g importable or top level in module).
 
-        * ProcessPoolExecutor is not supported b/c Response objects are
-          not picklable.
+          Additionally, if on Python < 3.5 an existing session object MUST be
+          passed when initializing with `ProcessPoolExecutor`.
 
         * If you provide both `executor` and `max_workers`, the latter is
           ignored and provided executor is used as is.
@@ -63,19 +73,14 @@ class FuturesSession(Session):
         happens in the background thread.
         """
         if self.session:
-            func = sup = self.session.request
+            func = self.session.request
         else:
-            func = sup = super(FuturesSession, self).request
+            # avoid calling super to not break pickled method
+            func = functools.partial(Session.request, self)
 
         background_callback = kwargs.pop('background_callback', None)
         if background_callback:
-            def wrap(*args_, **kwargs_):
-                resp = sup(*args_, **kwargs_)
-                background_callback(self, resp)
-                return resp
-
-            func = wrap
-
+            func = functools.partial(wrap, self, func, background_callback)
         return self.executor.submit(func, *args, **kwargs)
 
     def __enter__(self):
