@@ -19,8 +19,9 @@ releases of python.
     print(response.content)
 
 """
-from concurrent.futures import ThreadPoolExecutor
-import functools
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from functools import partial
+from pickle import dumps, PickleError
 
 from requests import Session
 from requests.adapters import DEFAULT_POOLSIZE, HTTPAdapter
@@ -32,6 +33,10 @@ def wrap(self, sup, background_callback, *args_, **kwargs_):
     return background_callback(self, resp) or resp
 
 
+PICKLE_ERROR = ('Cannot pickle function. Refer to documentation: https://'
+                'github.com/ross/requests-futures/#using-processpoolexecutor')
+
+
 class FuturesSession(Session):
 
     def __init__(self, executor=None, max_workers=2, session=None, *args,
@@ -40,12 +45,8 @@ class FuturesSession(Session):
 
         Notes
         ~~~~~
-        * `ProcessPoolExecutor` may be used with Python > 3.3.5;
-          however, if `background_callback` function is given, it must be
-          pickle-able (e.g importable or top level in module).
-
-          Additionally, if on Python < 3.5 an existing session object MUST be
-          passed when initializing with `ProcessPoolExecutor`.
+        * `ProcessPoolExecutor` may be used with Python > 3.4;
+          see README for more information.
 
         * If you provide both `executor` and `max_workers`, the latter is
           ignored and provided executor is used as is.
@@ -76,11 +77,19 @@ class FuturesSession(Session):
             func = self.session.request
         else:
             # avoid calling super to not break pickled method
-            func = functools.partial(Session.request, self)
+            func = partial(Session.request, self)
 
         background_callback = kwargs.pop('background_callback', None)
         if background_callback:
-            func = functools.partial(wrap, self, func, background_callback)
+            func = partial(wrap, self, func, background_callback)
+
+        if isinstance(self.executor, ProcessPoolExecutor):
+            # verify function can be pickled
+            try:
+                dumps(func)
+            except (TypeError, PickleError):
+                raise RuntimeError(PICKLE_ERROR)
+
         return self.executor.submit(func, *args, **kwargs)
 
     def __enter__(self):

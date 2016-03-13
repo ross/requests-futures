@@ -3,10 +3,14 @@
 
 """Tests for Requests."""
 
-from concurrent.futures import Future
+from concurrent.futures import Future, ProcessPoolExecutor
 from os import environ
-import unittest
-import sys
+from sys import version_info
+try:
+    from sys import pypy_version_info
+except ImportError:
+    pypy_version_info = None
+from unittest import TestCase, main, skipIf
 
 from requests import Response, session
 from requests_futures.sessions import FuturesSession
@@ -19,7 +23,7 @@ def httpbin(*suffix):
     return HTTPBIN + '/'.join(suffix)
 
 
-class RequestsTestCase(unittest.TestCase):
+class RequestsTestCase(TestCase):
 
     def test_futures_session(self):
         # basic futures get
@@ -141,21 +145,25 @@ def global_rasing_cb(s, r):
 
 
 # pickling instance method supported only from here
-unsupported_platform = sys.version_info < (3, 3, 5)
-session_required = sys.version_info < (3, 5,)
+unsupported_platform = version_info < (3, 4) and not pypy_version_info
+session_required = version_info < (3, 5,) and not pypy_version_info
 
 
-@unittest.skipIf(unsupported_platform, 'not supported in python < 3.3.5')
-class RequestsProcessPoolTestCase(unittest.TestCase):
+@skipIf(unsupported_platform, 'not supported in python < 3.4')
+class RequestsProcessPoolTestCase(TestCase):
 
     def setUp(self):
-        from concurrent.futures import ProcessPoolExecutor
         self.proc_executor = ProcessPoolExecutor(max_workers=2)
         self.session = session()
 
-    @unittest.skipIf(session_required, 'not supported in python < 3.5')
+    @skipIf(session_required, 'not supported in python < 3.5')
     def test_futures_session(self):
         self._assert_futures_session()
+
+    @skipIf(not session_required, 'fully supported on python >= 3.5')
+    def test_exception_raised(self):
+        with self.assertRaises(RuntimeError):
+            self._assert_futures_session()
 
     def test_futures_existing_session(self):
         self.session.headers['Foo'] = 'bar'
@@ -212,7 +220,7 @@ class RequestsProcessPoolTestCase(unittest.TestCase):
         resp = future.result()
         self.assertEqual(404, resp.status_code)
 
-    @unittest.skipIf(session_required, 'not supported in python < 3.5')
+    @skipIf(session_required, 'not supported in python < 3.5')
     def test_context(self):
         self._assert_context()
 
@@ -249,5 +257,14 @@ class TopLevelContextHelper(FuturesSession):
             *args, **kwargs)
 
 
+@skipIf(not unsupported_platform, 'Exception raised when unsupported')
+class ProcessPoolExceptionRaisedTestCase(TestCase):
+    def test_exception_raised(self):
+        executor = ProcessPoolExecutor(max_workers=2)
+        sess = FuturesSession(executor=executor, session=session())
+        with self.assertRaises(RuntimeError):
+            sess.get(httpbin('get'))
+
+
 if __name__ == '__main__':
-    unittest.main()
+    main()
