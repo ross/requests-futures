@@ -109,6 +109,68 @@ for a simple example take json parsing.
     pprint(response.data)
 
 
+
+Using ProcessPoolExecutor
+=========================
+
+Similarly to `ThreadPoolExecutor`, it is possible to use an instance of
+`ProcessPoolExecutor`. As the name suggest, the requests will be executed
+concurrently in separate processes rather than threads.
+
+.. code-block:: python
+
+    from concurrent.futures import ProcessPoolExecutor
+    from requests_futures.sessions import FuturesSession
+
+    session = FuturesSession(executor=ProcessPoolExecutor(max_workers=10))
+    # ... use as before
+
+.. HINT::
+    Using the `ProcessPoolExecutor` is useful, in cases where memory
+    usage per request is very high (large response) and cycling the interpretor
+    is required to release memory back to OS.
+
+A base requirement of using `ProcessPoolExecutor` is that the `Session.request`,
+`FutureSession` and (the optional) `background_callback` all be pickle-able.
+
+This means that only Python 3.5 is fully supported, while Python versions
+3.4 and above REQUIRE an existing `requests.Session` instance to be passed
+when initializing `FutureSession`. Python 2.X and < 3.4 are currently not
+supported.
+
+.. code-block:: python
+    
+    # Using python 3.4
+    from concurrent.futures import ProcessPoolExecutor
+    from requests import Session
+    from requests_futures.sessions import FuturesSession
+
+    session = FuturesSession(executor=ProcessPoolExecutor(max_workers=10),
+                             session=Session())
+    # ... use as before
+
+In case pickling fails, an exception is raised pointing to this documentation.
+
+.. code-block:: python
+    
+    # Using python 2.7
+    from concurrent.futures import ProcessPoolExecutor
+    from requests import Session
+    from requests_futures.sessions import FuturesSession
+
+    session = FuturesSession(executor=ProcessPoolExecutor(max_workers=10),
+                             session=Session())
+    Traceback (most recent call last):
+    ...
+    RuntimeError: Cannot pickle function. Refer to documentation: https://github.com/ross/requests-futures/#using-processpoolexecutor
+
+.. IMPORTANT::
+  * Python >= 3.4 required
+  * A session instance is required when using Python < 3.5
+  * If sub-classing `FuturesSession` it must be importable (module global)
+  * If using `background_callback` it too must be importable (module global)
+
+
 Installation
 ============
 
