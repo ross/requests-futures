@@ -82,6 +82,24 @@ beyond returning a Future rather than Response. As with all futures exceptions
 are shifted (thrown) to the future.result() call so try/except blocks should be
 moved there.
 
+Canceling queued requests (a.k.a cleaning up after yourself)
+=========================
+
+If you know that you won't be needing any additional responses from futures that 
+haven't yet resolved, it's a good idea to cancel those requests. You can do this 
+by using the session as a context manager:
+
+.. code-block:: python
+    from requests_futures.sessions import FuturesSession
+    with FuturesSession(max_workers=1) as session:
+        future = session.get('https://httpbin.org/get')
+        future2 = session.get('https://httpbin.org/delay/10')
+        future3 = session.get('https://httpbin.org/delay/10')
+        response = future.result()
+        
+In this example, the second or third request will be skipped, saving time and 
+resources that would otherwise be wasted.
+
 Working in the Background
 =========================
 
