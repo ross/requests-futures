@@ -90,6 +90,7 @@ haven't yet resolved, it's a good idea to cancel those requests. You can do this
 by using the session as a context manager:
 
 .. code-block:: python
+
     from requests_futures.sessions import FuturesSession
     with FuturesSession(max_workers=1) as session:
         future = session.get('https://httpbin.org/get')
