@@ -52,6 +52,7 @@ class FuturesSession(Session):
           ignored and provided executor is used as is.
         """
         super(FuturesSession, self).__init__(*args, **kwargs)
+        self._owned_executor = executor is None
         if executor is None:
             executor = ThreadPoolExecutor(max_workers=max_workers)
             # set connection pool size equal to max_workers if needed
@@ -92,8 +93,8 @@ class FuturesSession(Session):
 
         return self.executor.submit(func, *args, **kwargs)
 
-    def __enter__(self):
-        return self
+    def close(self):
+        super(FuturesSession, self).close()
+        if self._owned_executor:
+            self.executor.shutdown()
 
-    def __exit__(self, type, value, traceback):
-        self.executor.shutdown()
