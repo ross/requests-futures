@@ -19,7 +19,7 @@ releases of python.
     print(response.content)
 
 """
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor, ProcessPoolExecutor
 from functools import partial
 from pickle import dumps, PickleError
 
@@ -73,6 +73,8 @@ class FuturesSession(Session):
         The background_callback param allows you to do some processing on the
         response in the background, e.g. call resp.json() so that json parsing
         happens in the background thread.
+
+        :rtype : concurrent.futures.Future
         """
         if self.session:
             func = self.session.request
