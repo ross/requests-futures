@@ -19,7 +19,7 @@ releases of python.
     print(response.content)
 
 """
-from concurrent.futures import Future, ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from functools import partial
 from pickle import dumps, PickleError
 
