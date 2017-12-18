@@ -65,7 +65,7 @@ class FuturesSession(Session):
         self.executor = executor
         self.session = session
 
-    def request(self, *args, **kwargs) -> Future:
+    def request(self, *args, **kwargs):
         """Maintains the existing api for Session.request.
 
         Used by all of the higher level methods, e.g. Session.get.
