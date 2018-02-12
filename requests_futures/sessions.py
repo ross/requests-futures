@@ -66,12 +66,17 @@ class FuturesSession(Session):
         self.session = session
 
     def send(self, request, **kwargs):
-        func = super(FuturesSession, self).send
+        if self.session:
+            func = self.session.send
+        else:
+            func = partial(Session.send, self)
+
         if isinstance(self.executor, ProcessPoolExecutor):
             try:
                 dumps(func)
             except (TypeError, PickleError):
                 raise RuntimeError(PICKLE_ERROR)
+
         return self.executor.submit(func, request, **kwargs)
 
     def close(self):
