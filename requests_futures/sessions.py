@@ -69,7 +69,7 @@ class FuturesSession(Session):
         func = super(FuturesSession, self).send
         if isinstance(self.executor, ProcessPoolExecutor):
             try:
-                dumps(request)
+                dumps(func)
             except (TypeError, PickleError):
                 raise RuntimeError(PICKLE_ERROR)
         return self.executor.submit(func, request, **kwargs)
