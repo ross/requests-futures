@@ -19,7 +19,12 @@ releases of python.
     print(response.content)
 
 """
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
+try:
+    from concurrent.futures import ProcessPoolExecutor
+except ImportError:
+    pass
+
 from functools import partial
 from pickle import dumps, PickleError
 
@@ -65,38 +70,22 @@ class FuturesSession(Session):
         self.executor = executor
         self.session = session
 
-    def request(self, *args, **kwargs):
-        """Maintains the existing api for Session.request.
-
-        Used by all of the higher level methods, e.g. Session.get.
-
-        The background_callback param allows you to do some processing on the
-        response in the background, e.g. call resp.json() so that json parsing
-        happens in the background thread.
-
-        :rtype : concurrent.futures.Future
-        """
+    def send(self, request, **kwargs):
         if self.session:
-            func = self.session.request
+            func = self.session.send
         else:
-            # avoid calling super to not break pickled method
-            func = partial(Session.request, self)
+            func = partial(Session.send, self)
 
-        background_callback = kwargs.pop('background_callback', None)
-        if background_callback:
-            func = partial(wrap, self, func, background_callback)
-
-        if isinstance(self.executor, ProcessPoolExecutor):
-            # verify function can be pickled
+        if not isinstance(self.executor, ThreadPoolExecutor) and \
+                isinstance(self.executor, ProcessPoolExecutor):
             try:
                 dumps(func)
             except (TypeError, PickleError):
                 raise RuntimeError(PICKLE_ERROR)
 
-        return self.executor.submit(func, *args, **kwargs)
+        return self.executor.submit(func, request, **kwargs)
 
     def close(self):
         super(FuturesSession, self).close()
         if self._owned_executor:
             self.executor.shutdown()
-
