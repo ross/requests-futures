@@ -19,7 +19,12 @@ releases of python.
     print(response.content)
 
 """
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
+try:
+    from concurrent.futures import ProcessPoolExecutor
+except ImportError:
+    pass
+
 from functools import partial
 from pickle import dumps, PickleError
 
@@ -71,7 +76,8 @@ class FuturesSession(Session):
         else:
             func = partial(Session.send, self)
 
-        if isinstance(self.executor, ProcessPoolExecutor):
+        if not isinstance(self.executor, ThreadPoolExecutor) and \
+                isinstance(self.executor, ProcessPoolExecutor):
             try:
                 dumps(func)
             except (TypeError, PickleError):
