@@ -13,6 +13,7 @@ except ImportError:
 from unittest import TestCase, main, skipIf
 
 from requests import Response, session
+from requests.adapters import DEFAULT_POOLSIZE
 from requests_futures.sessions import FuturesSession
 
 HTTPBIN = environ.get('HTTPBIN_URL', 'http://httpbin.org/')
@@ -84,6 +85,21 @@ class RequestsTestCase(TestCase):
         session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10),
                                  max_workers=5)
         self.assertEqual(session.executor._max_workers, 10)
+
+    def test_adapter_kwargs(self):
+        """ Tests the `adapter_kwargs` shortcut. """
+        from concurrent.futures import ThreadPoolExecutor
+        session = FuturesSession()
+        self.assertFalse(session.get_adapter('http://')._pool_block)
+        session = FuturesSession(max_workers=DEFAULT_POOLSIZE + 1,
+                                 adapter_kwargs={'pool_block': True})
+        adapter = session.get_adapter('http://')
+        self.assertTrue(adapter._pool_block)
+        self.assertEqual(adapter._pool_connections, DEFAULT_POOLSIZE + 1)
+        self.assertEqual(adapter._pool_maxsize, DEFAULT_POOLSIZE + 1)
+        session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10),
+                                 adapter_kwargs={'pool_connections': 20})
+        self.assertEqual(session.get_adapter('http://')._pool_connections, 20)
 
     def test_redirect(self):
         """ Tests for the ability to cleanly handle redirects. """
