@@ -39,8 +39,8 @@ PICKLE_ERROR = ('Cannot pickle function. Refer to documentation: https://'
 
 class FuturesSession(Session):
 
-    def __init__(self, executor=None, max_workers=2, session=None, *args,
-                 **kwargs):
+    def __init__(self, executor=None, max_workers=2, session=None,
+                 adapter_kwargs=None, *args, **kwargs):
         """Creates a FuturesSession
 
         Notes
@@ -51,16 +51,21 @@ class FuturesSession(Session):
         * If you provide both `executor` and `max_workers`, the latter is
           ignored and provided executor is used as is.
         """
+        _adapter_kwargs = {}
         super(FuturesSession, self).__init__(*args, **kwargs)
         self._owned_executor = executor is None
         if executor is None:
             executor = ThreadPoolExecutor(max_workers=max_workers)
             # set connection pool size equal to max_workers if needed
             if max_workers > DEFAULT_POOLSIZE:
-                adapter_kwargs = dict(pool_connections=max_workers,
-                                      pool_maxsize=max_workers)
-                self.mount('https://', HTTPAdapter(**adapter_kwargs))
-                self.mount('http://', HTTPAdapter(**adapter_kwargs))
+                _adapter_kwargs.update({'pool_connections': max_workers,
+                                        'pool_maxsize': max_workers})
+
+        _adapter_kwargs.update(adapter_kwargs or {})
+
+        if _adapter_kwargs:
+            self.mount('https://', HTTPAdapter(**_adapter_kwargs))
+            self.mount('http://', HTTPAdapter(**_adapter_kwargs))
 
         self.executor = executor
         self.session = session
