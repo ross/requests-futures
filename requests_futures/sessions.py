@@ -39,7 +39,7 @@ PICKLE_ERROR = ('Cannot pickle function. Refer to documentation: https://'
 
 class FuturesSession(Session):
 
-    def __init__(self, executor=None, max_workers=2, session=None,
+    def __init__(self, executor=None, max_workers=8, session=None,
                  adapter_kwargs=None, *args, **kwargs):
         """Creates a FuturesSession
 
