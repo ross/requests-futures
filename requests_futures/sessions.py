@@ -7,7 +7,7 @@ This module provides a small add-on for the requests http library. It makes use
 of python 3.3's concurrent.futures or the futures backport for previous
 releases of python.
 
-    from requests_futures import FuturesSession
+    from requests_futures.sessions import FuturesSession
 
     session = FuturesSession()
     # request is run in the background
