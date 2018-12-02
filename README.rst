@@ -37,7 +37,7 @@ Response can be retrieved by calling the result method on the Future:
     session = FuturesSession()
     # first request is started in background
     future_one = session.get('http://httpbin.org/get')
-    # second requests is started immediately 
+    # second requests is started immediately
     future_two = session.get('http://httpbin.org/get?foo=bar')
     # wait for the first request to complete, if it hasn't already
     response_one = future_one.result()
@@ -85,8 +85,8 @@ moved there.
 Canceling queued requests (a.k.a cleaning up after yourself)
 =========================
 
-If you know that you won't be needing any additional responses from futures that 
-haven't yet resolved, it's a good idea to cancel those requests. You can do this 
+If you know that you won't be needing any additional responses from futures that
+haven't yet resolved, it's a good idea to cancel those requests. You can do this
 by using the session as a context manager:
 
 .. code-block:: python
@@ -97,8 +97,8 @@ by using the session as a context manager:
         future2 = session.get('https://httpbin.org/delay/10')
         future3 = session.get('https://httpbin.org/delay/10')
         response = future.result()
-        
-In this example, the second or third request will be skipped, saving time and 
+
+In this example, the second or third request will be skipped, saving time and
 resources that would otherwise be wasted.
 
 Working in the Background
@@ -216,7 +216,7 @@ when initializing `FutureSession`. Python 2.X and < 3.4 are currently not
 supported.
 
 .. code-block:: python
-    
+
     # Using python 3.4
     from concurrent.futures import ProcessPoolExecutor
     from requests import Session
@@ -229,7 +229,7 @@ supported.
 In case pickling fails, an exception is raised pointing to this documentation.
 
 .. code-block:: python
-    
+
     # Using python 2.7
     from concurrent.futures import ProcessPoolExecutor
     from requests import Session
