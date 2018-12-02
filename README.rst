@@ -104,7 +104,7 @@ resources that would otherwise be wasted.
 Working in the Background
 =========================
 
-Additional processing can be done in the background using requests's hooks
+Additional processing can be done in the background using requests's hooks_
 functionality. This can be useful for shifting work out of the foreground, for
 a simple example take json parsing.
 
