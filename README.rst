@@ -37,7 +37,7 @@ Response can be retrieved by calling the result method on the Future:
     session = FuturesSession()
     # first request is started in background
     future_one = session.get('http://httpbin.org/get')
-    # second requests is started immediately 
+    # second requests is started immediately
     future_two = session.get('http://httpbin.org/get?foo=bar')
     # wait for the first request to complete, if it hasn't already
     response_one = future_one.result()
@@ -85,8 +85,8 @@ moved there.
 Canceling queued requests (a.k.a cleaning up after yourself)
 =========================
 
-If you know that you won't be needing any additional responses from futures that 
-haven't yet resolved, it's a good idea to cancel those requests. You can do this 
+If you know that you won't be needing any additional responses from futures that
+haven't yet resolved, it's a good idea to cancel those requests. You can do this
 by using the session as a context manager:
 
 .. code-block:: python
@@ -97,17 +97,16 @@ by using the session as a context manager:
         future2 = session.get('https://httpbin.org/delay/10')
         future3 = session.get('https://httpbin.org/delay/10')
         response = future.result()
-        
-In this example, the second or third request will be skipped, saving time and 
+
+In this example, the second or third request will be skipped, saving time and
 resources that would otherwise be wasted.
 
 Working in the Background
 =========================
 
-There is one additional parameter to the various request functions,
-background_callback, which allows you to work with the Response objects in the
-background thread. This can be useful for shifting work out of the foreground,
-for a simple example take json parsing.
+Additional processing can be done in the background using requests's hooks
+functionality. This can be useful for shifting work out of the foreground, for
+a simple example take json parsing.
 
 .. code-block:: python
 
@@ -116,18 +115,77 @@ for a simple example take json parsing.
 
     session = FuturesSession()
 
-    def bg_cb(sess, resp):
+    def response_hook(resp, *args, **kwargs):
         # parse the json storing the result on the response object
         resp.data = resp.json()
 
-    future = session.get('http://httpbin.org/get', background_callback=bg_cb)
+    future = session.get('http://httpbin.org/get', hooks={
+        'response': response_hook,
+    })
     # do some other stuff, send some more requests while this one works
     response = future.result()
     print('response status {0}'.format(response.status_code))
     # data will have been attached to the response object in the background
     pprint(response.data)
 
+Hooks can also be applied to the session.
 
+.. code-block:: python
+
+    from pprint import pprint
+    from requests_futures.sessions import FuturesSession
+
+    def response_hook(resp, *args, **kwargs):
+        # parse the json storing the result on the response object
+        resp.data = resp.json()
+
+    session = FuturesSession()
+    session.hooks['response'] = response_hook
+
+    future = session.get('http://httpbin.org/get')
+    # do some other stuff, send some more requests while this one works
+    response = future.result()
+    print('response status {0}'.format(response.status_code))
+    # data will have been attached to the response object in the background
+    pprint(response.data)   pprint(response.data)
+
+A more advanced example that adds an `elapsed` property to all requests.
+
+.. code-block:: python
+
+    from pprint import pprint
+    from requests_futures.sessions import FuturesSession
+    from time import time
+
+
+    class ElapsedFuturesSession(FuturesSession):
+
+        def request(self, method, url, hooks={}, *args, **kwargs):
+            start = time()
+
+            def timing(r, *args, **kwargs):
+                r.elapsed = time() - start
+
+            try:
+                if isinstance(hooks['response'], (list, tuple)):
+                    # needs to be first so we don't time other hooks execution
+                    hooks['response'].prepend(timing)
+                else:
+                    hooks['response'] = [timing, hooks['response']]
+            except KeyError:
+                hooks['response'] = timing
+
+            return super(ElapsedFuturesSession, self) \
+                .request(method, url, hooks=hooks, *args, **kwargs)
+
+
+
+    session = ElapsedFuturesSession()
+    future = session.get('http://httpbin.org/get')
+    # do some other stuff, send some more requests while this one works
+    response = future.result()
+    print('response status {0}'.format(response.status_code))
+    print('response elapsed {0}'.format(response.elapsed))
 
 Using ProcessPoolExecutor
 =========================
@@ -150,7 +208,7 @@ concurrently in separate processes rather than threads.
     is required to release memory back to OS.
 
 A base requirement of using `ProcessPoolExecutor` is that the `Session.request`,
-`FutureSession` and (the optional) `background_callback` all be pickle-able.
+`FutureSession` all be pickle-able.
 
 This means that only Python 3.5 is fully supported, while Python versions
 3.4 and above REQUIRE an existing `requests.Session` instance to be passed
@@ -158,7 +216,7 @@ when initializing `FutureSession`. Python 2.X and < 3.4 are currently not
 supported.
 
 .. code-block:: python
-    
+
     # Using python 3.4
     from concurrent.futures import ProcessPoolExecutor
     from requests import Session
@@ -171,7 +229,7 @@ supported.
 In case pickling fails, an exception is raised pointing to this documentation.
 
 .. code-block:: python
-    
+
     # Using python 2.7
     from concurrent.futures import ProcessPoolExecutor
     from requests import Session
@@ -187,8 +245,6 @@ In case pickling fails, an exception is raised pointing to this documentation.
   * Python >= 3.4 required
   * A session instance is required when using Python < 3.5
   * If sub-classing `FuturesSession` it must be importable (module global)
-  * If using `background_callback` it too must be importable (module global)
-
 
 Installation
 ============
@@ -198,3 +254,4 @@ Installation
 .. _`requests`: https://github.com/kennethreitz/requests
 .. _`concurrent.futures`: http://docs.python.org/dev/library/concurrent.futures.html
 .. _backport: https://pypi.python.org/pypi/futures
+.. _hooks: http://docs.python-requests.org/en/master/user/advanced/#event-hooks

@@ -11,12 +11,16 @@ try:
 except ImportError:
     pypy_version_info = None
 from unittest import TestCase, main, skipIf
+import logging
 
 from requests import Response, session
 from requests.adapters import DEFAULT_POOLSIZE
 from requests_futures.sessions import FuturesSession
 
 HTTPBIN = environ.get('HTTPBIN_URL', 'http://httpbin.org/')
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger('urllib3.connectionpool').level = logging.WARN
+logging.getLogger('FuturesSession').level = logging.ERROR
 
 
 def httpbin(*suffix):
