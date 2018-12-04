@@ -169,7 +169,7 @@ A more advanced example that adds an `elapsed` property to all requests.
             try:
                 if isinstance(hooks['response'], (list, tuple)):
                     # needs to be first so we don't time other hooks execution
-                    hooks['response'].prepend(timing)
+                    hooks['response'].insert(0, timing)
                 else:
                     hooks['response'] = [timing, hooks['response']]
             except KeyError:
