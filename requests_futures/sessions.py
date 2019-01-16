@@ -109,3 +109,44 @@ class FuturesSession(Session):
         if self._owned_executor:
             self.executor.shutdown()
 
+    def get(self, url, **kwargs):
+        """
+        :rtype : concurrent.futures.Future
+        """
+        return super(FuturesSession, self).get(url, **kwargs)
+
+    def options(self, url, **kwargs):
+        """
+        :rtype : concurrent.futures.Future
+        """
+        return super(FuturesSession, self).options(url, **kwargs)
+
+    def head(self, url, **kwargs):
+        """
+        :rtype : concurrent.futures.Future
+        """
+        return super(FuturesSession, self).head(url, **kwargs)
+
+    def post(self, url, data=None, json=None, **kwargs):
+        """
+        :rtype : concurrent.futures.Future
+        """
+        return super(FuturesSession, self).post(url, data=data, json=json, **kwargs)
+
+    def put(self, url, data=None, **kwargs):
+        """
+        :rtype : concurrent.futures.Future
+        """
+        return super(FuturesSession, self).put(url, data=data, **kwargs)
+
+    def patch(self, url, data=None, **kwargs):
+        """
+        :rtype : concurrent.futures.Future
+        """
+        return super(FuturesSession, self).patch(url, data=data, **kwargs)
+
+    def delete(self, url, **kwargs):
+        """
+        :rtype : concurrent.futures.Future
+        """
+        return super(FuturesSession, self).delete(url, **kwargs)
