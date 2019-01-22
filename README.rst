@@ -48,7 +48,7 @@ Response can be retrieved by calling the result method on the Future:
     print('response two status: {0}'.format(response_two.status_code))
     print(response_two.content)
 
-By default a ThreadPoolExecutor is created with 2 workers. If you would like to
+By default a ThreadPoolExecutor is created with 8 workers. If you would like to
 adjust that value or share a executor across multiple sessions you can provide
 one to the FuturesSession constructor.
 
