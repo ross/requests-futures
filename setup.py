@@ -19,11 +19,9 @@ packages = [
 ]
 
 requires = [
-    'requests>=1.2.0'
+    'requests>=1.2.0',
+    "futures>=2.1.3; python_version<'3.2'"
 ]
-
-if sys.version_info < (3, 2):
-    requires.append('futures>=2.1.3')
 
 setup(
     name='requests-futures',
