@@ -19,7 +19,7 @@ from requests_futures.sessions import FuturesSession
 
 HTTPBIN = environ.get('HTTPBIN_URL', 'http://httpbin.org/')
 logging.basicConfig(level=logging.DEBUG)
-logging.getLogger('urllib3.connectionpool').level = logging.WARN
+logging.getLogger('urllib3.connectionpool').level = logging.WARNING
 logging.getLogger('FuturesSession').level = logging.ERROR
 
 
