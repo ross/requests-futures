@@ -91,7 +91,7 @@ class FuturesSession(Session):
         background_callback = kwargs.pop('background_callback', None)
         if background_callback:
             logger = getLogger(self.__class__.__name__)
-            logger.warn('`background_callback` is deprecated and will be '
+            logger.warning('`background_callback` is deprecated and will be '
                         'removed in 1.0, use `hooks` instead')
             func = partial(wrap, self, func, background_callback)
 
