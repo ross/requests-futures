@@ -38,7 +38,7 @@ setup(
     license='Apache License v2',
     url='https://github.com/ross/requests-futures',
     zip_safe=False,
-    classifiers=(
+    classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Natural Language :: English',
@@ -49,5 +49,5 @@ setup(
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
-    ),
+    ],
 )
