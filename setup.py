@@ -19,11 +19,9 @@ packages = [
 ]
 
 requires = [
-    'requests>=1.2.0'
+    'requests>=1.2.0',
+    'futures>=2.1.3; python_version<"3.2"'
 ]
-
-if sys.version_info < (3, 2):
-    requires.append('futures>=2.1.3')
 
 setup(
     name='requests-futures',
@@ -37,10 +35,11 @@ setup(
     package_data={'requests_futures': ['LICENSE', 'README.rst']},
     include_package_data=True,
     install_requires=requires,
+    setup_requires=['setuptools>=38.6.1'],
     license='Apache License v2',
     url='https://github.com/ross/requests-futures',
     zip_safe=False,
-    classifiers=(
+    classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Natural Language :: English',
@@ -51,5 +50,5 @@ setup(
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
-    ),
+    ],
 )
