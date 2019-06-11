@@ -83,7 +83,7 @@ are shifted (thrown) to the future.result() call so try/except blocks should be
 moved there.
 
 Canceling queued requests (a.k.a cleaning up after yourself)
-=========================
+============================================================
 
 If you know that you won't be needing any additional responses from futures that
 haven't yet resolved, it's a good idea to cancel those requests. You can do this
