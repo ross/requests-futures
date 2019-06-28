@@ -160,9 +160,11 @@ A more advanced example that adds an `elapsed` property to all requests.
 
     class ElapsedFuturesSession(FuturesSession):
 
-        def request(self, method, url, hooks={}, *args, **kwargs):
+        def request(self, method, url, hooks=None, *args, **kwargs):
             start = time()
-
+            if hooks is None:
+                hooks = {}
+            
             def timing(r, *args, **kwargs):
                 r.elapsed = time() - start
 
