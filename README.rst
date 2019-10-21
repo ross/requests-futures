@@ -101,6 +101,21 @@ by using the session as a context manager:
 In this example, the second or third request will be skipped, saving time and
 resources that would otherwise be wasted.
 
+Iterating over a list of requests responses
+===========================================
+
+Without preserving the requests order:
+
+.. code-block:: python
+
+    from concurrent.futures import as_completed
+    from requests_futures.sessions import FuturesSession
+    with FuturesSession() as session:
+        futures = [session.get('https://httpbin.org/delay/{}'.format(i % 3)) for i in range(10)]
+        for future in as_completed(futures):
+            resp = future.result()
+            print(resp.json()['url'])
+
 Working in the Background
 =========================
 
