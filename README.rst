@@ -82,6 +82,56 @@ beyond returning a Future rather than Response. As with all futures exceptions
 are shifted (thrown) to the future.result() call so try/except blocks should be
 moved there.
 
+
+Tying extra information to the request/response
+===============================================
+
+The most common piece of information needed is the URL of the request. This can
+be accessed without any extra steps using the `request` property of the
+response object.
+
+.. code-block:: python
+
+    from concurrent.futures import as_completed
+    from pprint import pprint
+    from requests_futures.sessions import FuturesSession
+
+    session = FuturesSession()
+
+    futures=[session.get(f'http://httpbin.org/get?{i}') for i in range(3)]
+
+    for future in as_completed(futures):
+        resp = future.result()
+        pprint({
+            'url': resp.request.url,
+            'content': resp.json(),
+        })
+
+There are situations in which you may want to tie additional information to a
+request/response. There are a number of ways to go about this, the simplest is
+to attach additional information to the future object itself.
+
+.. code-block:: python
+
+    from concurrent.futures import as_completed
+    from pprint import pprint
+    from requests_futures.sessions import FuturesSession
+
+    session = FuturesSession()
+
+    futures=[]
+    for i in range(3):
+        future = session.get('http://httpbin.org/get')
+        future.i = i
+        futures.append(future)
+
+    for future in as_completed(futures):
+        resp = future.result()
+        pprint({
+            'i': future.i,
+            'content': resp.json(),
+        })
+
 Canceling queued requests (a.k.a cleaning up after yourself)
 ============================================================
 
@@ -179,7 +229,7 @@ A more advanced example that adds an `elapsed` property to all requests.
             start = time()
             if hooks is None:
                 hooks = {}
-            
+
             def timing(r, *args, **kwargs):
                 r.elapsed = time() - start
 
