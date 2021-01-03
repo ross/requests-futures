@@ -271,7 +271,7 @@ concurrently in separate processes rather than threads.
 
 .. HINT::
     Using the `ProcessPoolExecutor` is useful, in cases where memory
-    usage per request is very high (large response) and cycling the interpretor
+    usage per request is very high (large response) and cycling the interpreter
     is required to release memory back to OS.
 
 A base requirement of using `ProcessPoolExecutor` is that the `Session.request`,
