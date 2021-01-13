@@ -17,7 +17,7 @@ from requests import Response, session
 from requests.adapters import DEFAULT_POOLSIZE
 from requests_futures.sessions import FuturesSession
 
-HTTPBIN = environ.get('HTTPBIN_URL', 'http://httpbin.org/')
+HTTPBIN = environ.get('HTTPBIN_URL', 'https://nghttp2.org/httpbin/')
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger('urllib3.connectionpool').level = logging.WARNING
 logging.getLogger('FuturesSession').level = logging.ERROR

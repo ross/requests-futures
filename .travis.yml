@@ -3,7 +3,7 @@ python:
   - 2.7
   - 3.4
   - 3.5
-env: HTTPBIN_URL=http://httpbin.org/
+env: HTTPBIN_URL=https://nghttp2.org/httpbin/
 script: python test_requests_futures.py
 install: pip install -r requirements-python-2.7.txt
 notifications:
