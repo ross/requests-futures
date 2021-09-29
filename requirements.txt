@@ -1,0 +1,2 @@
+futures; python_version < '3.3'
+requests>=1.2.0
