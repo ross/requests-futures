@@ -1,2 +1,0 @@
-futures
-requests>=1.2.0
