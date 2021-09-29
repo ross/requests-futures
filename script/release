@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -e
+
+cd "$(dirname "$0")"/..
+ROOT=$(pwd)
+
+VERSION="$(grep __version__ "$ROOT/requests_futures/__init__.py" | sed -e "s/.* = '//" -e "s/'$//")"
+
+git tag -s "v$VERSION" -m "Release $VERSION"
+git push origin "v$VERSION"
+echo "Tagged and pushed v$VERSION"
+python -m build --sdist --wheel
+twine check dist/*$VERSION.tar.gz dist/*$VERSION*.whl
+twine upload dist/*$VERSION.tar.gz dist/*$VERSION*.whl
+echo "Uploaded $VERSION"
