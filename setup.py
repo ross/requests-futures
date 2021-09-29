@@ -28,6 +28,7 @@ setup(
     version=requests_futures.__version__,
     description='Asynchronous Python HTTP for Humans.',
     long_description=open('README.rst').read(),
+    long_description_content_type='text/x-rst',
     author='Ross McFarland',
     author_email='rwmcfa1@neces.com',
     packages=packages,
