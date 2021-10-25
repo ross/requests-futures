@@ -1,7 +1,7 @@
 Asynchronous Python HTTP Requests for Humans
 ============================================
 
-.. image:: https://travis-ci.org/ross/requests-futures.png?branch=master
+.. image:: https://travis-ci.org/ross/requests-futures.svg?branch=master
         :target: https://travis-ci.org/ross/requests-futures
 
 Small add-on for the python requests_ http library. Makes use of python 3.2's
