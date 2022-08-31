@@ -29,19 +29,27 @@ from requests.adapters import DEFAULT_POOLSIZE, HTTPAdapter
 
 
 def wrap(self, sup, background_callback, *args_, **kwargs_):
-    """ A global top-level is required for ProcessPoolExecutor """
+    """A global top-level is required for ProcessPoolExecutor"""
     resp = sup(*args_, **kwargs_)
     return background_callback(self, resp) or resp
 
 
-PICKLE_ERROR = ('Cannot pickle function. Refer to documentation: https://'
-                'github.com/ross/requests-futures/#using-processpoolexecutor')
+PICKLE_ERROR = (
+    'Cannot pickle function. Refer to documentation: https://'
+    'github.com/ross/requests-futures/#using-processpoolexecutor'
+)
 
 
 class FuturesSession(Session):
-
-    def __init__(self, executor=None, max_workers=8, session=None,
-                 adapter_kwargs=None, *args, **kwargs):
+    def __init__(
+        self,
+        executor=None,
+        max_workers=8,
+        session=None,
+        adapter_kwargs=None,
+        *args,
+        **kwargs
+    ):
         """Creates a FuturesSession
 
         Notes
@@ -59,8 +67,12 @@ class FuturesSession(Session):
             executor = ThreadPoolExecutor(max_workers=max_workers)
             # set connection pool size equal to max_workers if needed
             if max_workers > DEFAULT_POOLSIZE:
-                _adapter_kwargs.update({'pool_connections': max_workers,
-                                        'pool_maxsize': max_workers})
+                _adapter_kwargs.update(
+                    {
+                        'pool_connections': max_workers,
+                        'pool_maxsize': max_workers,
+                    }
+                )
 
         _adapter_kwargs.update(adapter_kwargs or {})
 
@@ -91,8 +103,10 @@ class FuturesSession(Session):
         background_callback = kwargs.pop('background_callback', None)
         if background_callback:
             logger = getLogger(self.__class__.__name__)
-            logger.warning('`background_callback` is deprecated and will be '
-                        'removed in 1.0, use `hooks` instead')
+            logger.warning(
+                '`background_callback` is deprecated and will be '
+                'removed in 1.0, use `hooks` instead'
+            )
             func = partial(wrap, self, func, background_callback)
 
         if isinstance(self.executor, ProcessPoolExecutor):
@@ -147,7 +161,9 @@ class FuturesSession(Session):
         :param \*\*kwargs: Optional arguments that ``request`` takes.
         :rtype : concurrent.futures.Future
         """
-        return super(FuturesSession, self).post(url, data=data, json=json, **kwargs)
+        return super(FuturesSession, self).post(
+            url, data=data, json=json, **kwargs
+        )
 
     def put(self, url, data=None, **kwargs):
         r"""Sends a PUT request. Returns :class:`Future` object.

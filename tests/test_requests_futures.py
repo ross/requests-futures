@@ -6,6 +6,7 @@
 from concurrent.futures import Future, ProcessPoolExecutor
 from os import environ
 from sys import version_info
+
 try:
     from sys import pypy_version_info
 except ImportError:
@@ -29,7 +30,6 @@ def httpbin(*suffix):
 
 
 class RequestsTestCase(TestCase):
-
     def test_futures_session(self):
         # basic futures get
         sess = FuturesSession()
@@ -66,7 +66,7 @@ class RequestsTestCase(TestCase):
         self.assertEqual('boom', cm.exception.args[0])
 
     def test_supplied_session(self):
-        """ Tests the `session` keyword argument. """
+        """Tests the `session` keyword argument."""
         requests_session = session()
         requests_session.headers['Foo'] = 'bar'
         sess = FuturesSession(session=requests_session)
@@ -78,35 +78,42 @@ class RequestsTestCase(TestCase):
         self.assertEqual(resp.json()['headers']['Foo'], 'bar')
 
     def test_max_workers(self):
-        """ Tests the `max_workers` shortcut. """
+        """Tests the `max_workers` shortcut."""
         from concurrent.futures import ThreadPoolExecutor
+
         session = FuturesSession()
         self.assertEqual(session.executor._max_workers, 8)
         session = FuturesSession(max_workers=5)
         self.assertEqual(session.executor._max_workers, 5)
         session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
         self.assertEqual(session.executor._max_workers, 10)
-        session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10),
-                                 max_workers=5)
+        session = FuturesSession(
+            executor=ThreadPoolExecutor(max_workers=10), max_workers=5
+        )
         self.assertEqual(session.executor._max_workers, 10)
 
     def test_adapter_kwargs(self):
-        """ Tests the `adapter_kwargs` shortcut. """
+        """Tests the `adapter_kwargs` shortcut."""
         from concurrent.futures import ThreadPoolExecutor
+
         session = FuturesSession()
         self.assertFalse(session.get_adapter('http://')._pool_block)
-        session = FuturesSession(max_workers=DEFAULT_POOLSIZE + 1,
-                                 adapter_kwargs={'pool_block': True})
+        session = FuturesSession(
+            max_workers=DEFAULT_POOLSIZE + 1,
+            adapter_kwargs={'pool_block': True},
+        )
         adapter = session.get_adapter('http://')
         self.assertTrue(adapter._pool_block)
         self.assertEqual(adapter._pool_connections, DEFAULT_POOLSIZE + 1)
         self.assertEqual(adapter._pool_maxsize, DEFAULT_POOLSIZE + 1)
-        session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10),
-                                 adapter_kwargs={'pool_connections': 20})
+        session = FuturesSession(
+            executor=ThreadPoolExecutor(max_workers=10),
+            adapter_kwargs={'pool_connections': 20},
+        )
         self.assertEqual(session.get_adapter('http://')._pool_connections, 20)
 
     def test_redirect(self):
-        """ Tests for the ability to cleanly handle redirects. """
+        """Tests for the ability to cleanly handle redirects."""
         sess = FuturesSession()
         future = sess.get(httpbin('redirect-to?url=get'))
         self.assertIsInstance(future, Future)
@@ -119,17 +126,16 @@ class RequestsTestCase(TestCase):
         self.assertEqual(404, resp.status_code)
 
     def test_context(self):
-
         class FuturesSessionTestHelper(FuturesSession):
-
             def __init__(self, *args, **kwargs):
                 super(FuturesSessionTestHelper, self).__init__(*args, **kwargs)
                 self._exit_called = False
 
             def __exit__(self, *args, **kwargs):
                 self._exit_called = True
-                return super(FuturesSessionTestHelper, self).__exit__(*args,
-                                                                      **kwargs)
+                return super(FuturesSessionTestHelper, self).__exit__(
+                    *args, **kwargs
+                )
 
         passout = None
         with FuturesSessionTestHelper() as sess:
@@ -146,7 +152,7 @@ class RequestsTestCase(TestCase):
 # << test process pool executor >>
 # see discussion https://github.com/ross/requests-futures/issues/11
 def global_cb_modify_response(s, r):
-    """ add the parsed json data to the response """
+    """add the parsed json data to the response"""
     assert s, FuturesSession
     assert r, Response
     r.data = r.json()
@@ -154,7 +160,7 @@ def global_cb_modify_response(s, r):
 
 
 def global_cb_return_result(s, r):
-    """ simply return parsed json data """
+    """simply return parsed json data"""
     assert s, FuturesSession
     assert r, Response
     return r.json()
@@ -166,12 +172,11 @@ def global_rasing_cb(s, r):
 
 # pickling instance method supported only from here
 unsupported_platform = version_info < (3, 4) and not pypy_version_info
-session_required = version_info < (3, 5,) and not pypy_version_info
+session_required = version_info < (3, 5) and not pypy_version_info
 
 
 @skipIf(unsupported_platform, 'not supported in python < 3.4')
 class RequestsProcessPoolTestCase(TestCase):
-
     def setUp(self):
         self.proc_executor = ProcessPoolExecutor(max_workers=2)
         self.session = session()
@@ -207,8 +212,9 @@ class RequestsProcessPoolTestCase(TestCase):
         resp = future.result()
         self.assertEqual(404, resp.status_code)
 
-        future = sess.get(httpbin('get'),
-                          background_callback=global_cb_modify_response)
+        future = sess.get(
+            httpbin('get'), background_callback=global_cb_modify_response
+        )
         # this should block until complete
         resp = future.result()
         if session:
@@ -217,8 +223,9 @@ class RequestsProcessPoolTestCase(TestCase):
         # make sure the callback was invoked
         self.assertTrue(hasattr(resp, 'data'))
 
-        future = sess.get(httpbin('get'),
-                          background_callback=global_cb_return_result)
+        future = sess.get(
+            httpbin('get'), background_callback=global_cb_return_result
+        )
         # this should block until complete
         resp = future.result()
         # make sure the callback was invoked
@@ -249,8 +256,9 @@ class RequestsProcessPoolTestCase(TestCase):
 
     def _assert_context(self, session=None):
         if session:
-            helper_instance = TopLevelContextHelper(executor=self.proc_executor,
-                                                    session=self.session)
+            helper_instance = TopLevelContextHelper(
+                executor=self.proc_executor, session=self.session
+            )
         else:
             helper_instance = TopLevelContextHelper(executor=self.proc_executor)
         passout = None
@@ -267,14 +275,12 @@ class RequestsProcessPoolTestCase(TestCase):
 
 class TopLevelContextHelper(FuturesSession):
     def __init__(self, *args, **kwargs):
-        super(TopLevelContextHelper, self).__init__(
-            *args, **kwargs)
+        super(TopLevelContextHelper, self).__init__(*args, **kwargs)
         self._exit_called = False
 
     def __exit__(self, *args, **kwargs):
         self._exit_called = True
-        return super(TopLevelContextHelper, self).__exit__(
-            *args, **kwargs)
+        return super(TopLevelContextHelper, self).__exit__(*args, **kwargs)
 
 
 @skipIf(not unsupported_platform, 'Exception raised when unsupported')

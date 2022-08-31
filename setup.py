@@ -14,13 +14,9 @@ if sys.argv[-1] == 'publish':
     os.system('python setup.py sdist upload')
     sys.exit()
 
-packages = [
-    'requests_futures',
-]
+packages = ['requests_futures']
 
-requires = [
-    'requests>=1.2.0',
-]
+requires = ['requests>=1.2.0']
 
 tests_require = ('pytest>=6.2.5', 'pytest-cov>=3.0.0', 'pytest-network>=0.0.1')
 
