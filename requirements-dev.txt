@@ -11,7 +11,7 @@ importlib-metadata==6.0.0
 iniconfig==2.0.0
 jaraco.classes==3.2.3
 keyring==23.13.1
-markdown-it-py==2.1.0
+markdown-it-py==2.2.0
 mdurl==0.1.2
 more-itertools==9.0.0
 mypy-extensions==1.0.0
