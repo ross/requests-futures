@@ -11,11 +11,13 @@ try:
     from sys import pypy_version_info
 except ImportError:
     pypy_version_info = None
-from unittest import TestCase, main, skipIf
 import logging
+from unittest import TestCase, main, skipIf
 
+import pytest
 from requests import Response, session
 from requests.adapters import DEFAULT_POOLSIZE
+
 from requests_futures.sessions import FuturesSession
 
 HTTPBIN = environ.get('HTTPBIN_URL', 'https://nghttp2.org/httpbin/')
@@ -30,6 +32,7 @@ def httpbin(*suffix):
 
 
 class RequestsTestCase(TestCase):
+    @pytest.mark.network
     def test_futures_session(self):
         # basic futures get
         sess = FuturesSession()
@@ -65,6 +68,7 @@ class RequestsTestCase(TestCase):
             resp = future.result()
         self.assertEqual('boom', cm.exception.args[0])
 
+    @pytest.mark.network
     def test_supplied_session(self):
         """Tests the `session` keyword argument."""
         requests_session = session()
@@ -112,6 +116,7 @@ class RequestsTestCase(TestCase):
         )
         self.assertEqual(session.get_adapter('http://')._pool_connections, 20)
 
+    @pytest.mark.network
     def test_redirect(self):
         """Tests for the ability to cleanly handle redirects."""
         sess = FuturesSession()
@@ -125,6 +130,7 @@ class RequestsTestCase(TestCase):
         resp = future.result()
         self.assertEqual(404, resp.status_code)
 
+    @pytest.mark.network
     def test_context(self):
         class FuturesSessionTestHelper(FuturesSession):
             def __init__(self, *args, **kwargs):
@@ -181,15 +187,18 @@ class RequestsProcessPoolTestCase(TestCase):
         self.proc_executor = ProcessPoolExecutor(max_workers=2)
         self.session = session()
 
+    @pytest.mark.network
     @skipIf(session_required, 'not supported in python < 3.5')
     def test_futures_session(self):
         self._assert_futures_session()
 
+    @pytest.mark.network
     @skipIf(not session_required, 'fully supported on python >= 3.5')
     def test_exception_raised(self):
         with self.assertRaises(RuntimeError):
             self._assert_futures_session()
 
+    @pytest.mark.network
     def test_futures_existing_session(self):
         self.session.headers['Foo'] = 'bar'
         self._assert_futures_session(session=self.session)
@@ -247,10 +256,12 @@ class RequestsProcessPoolTestCase(TestCase):
         resp = future.result()
         self.assertEqual(404, resp.status_code)
 
+    @pytest.mark.network
     @skipIf(session_required, 'not supported in python < 3.5')
     def test_context(self):
         self._assert_context()
 
+    @pytest.mark.network
     def test_context_with_session(self):
         self._assert_context(session=self.session)
 
@@ -285,6 +296,7 @@ class TopLevelContextHelper(FuturesSession):
 
 @skipIf(not unsupported_platform, 'Exception raised when unsupported')
 class ProcessPoolExceptionRaisedTestCase(TestCase):
+    @pytest.mark.network
     def test_exception_raised(self):
         executor = ProcessPoolExecutor(max_workers=2)
         sess = FuturesSession(executor=executor, session=session())
