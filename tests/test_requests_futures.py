@@ -11,12 +11,13 @@ try:
     from sys import pypy_version_info
 except ImportError:
     pypy_version_info = None
-from unittest import TestCase, main, skipIf
 import logging
-import pytest
+from unittest import TestCase, main, skipIf
 
+import pytest
 from requests import Response, session
 from requests.adapters import DEFAULT_POOLSIZE
+
 from requests_futures.sessions import FuturesSession
 
 HTTPBIN = environ.get('HTTPBIN_URL', 'https://nghttp2.org/httpbin/')

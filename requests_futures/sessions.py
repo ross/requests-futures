@@ -19,10 +19,10 @@ releases of python.
     print(response.content)
 
 """
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import partial
 from logging import getLogger
-from pickle import dumps, PickleError
+from pickle import PickleError, dumps
 
 from requests import Session
 from requests.adapters import DEFAULT_POOLSIZE, HTTPAdapter
