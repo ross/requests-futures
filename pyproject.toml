@@ -5,7 +5,7 @@ skip-magic-trailing-comma=true
 
 [tool.isort]
 profile = "black"
-known_first_party="octodns"
+known_first_party="requests_futures"
 line_length=80
 
 [tool.pytest.ini_options]
