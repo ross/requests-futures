@@ -32,5 +32,4 @@ export ARM_SUBSCRIPTION_ID=
 
 export PYTHONPATH=.:$PYTHONPATH
 
-# TODO: --disable-network \
 pytest "$@"
