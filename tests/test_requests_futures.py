@@ -26,24 +26,23 @@ logging.getLogger('urllib3.connectionpool').level = logging.WARNING
 logging.getLogger('FuturesSession').level = logging.ERROR
 
 
-def httpbin(*suffix):
-    """Returns url for HTTPBIN resource."""
-    return HTTPBIN + '/'.join(suffix)
+@pytest.fixture(scope="class", autouse=True)
+def httpbin_on_class(request, httpbin):
+    request.cls.httpbin = httpbin
 
 
 class RequestsTestCase(TestCase):
-    @pytest.mark.network
     def test_futures_session(self):
         # basic futures get
         sess = FuturesSession()
-        future = sess.get(httpbin('get'))
+        future = sess.get(self.httpbin.join('get'))
         self.assertIsInstance(future, Future)
         resp = future.result()
         self.assertIsInstance(resp, Response)
         self.assertEqual(200, resp.status_code)
 
         # non-200, 404
-        future = sess.get(httpbin('status/404'))
+        future = sess.get(self.httpbin.join('status/404'))
         resp = future.result()
         self.assertEqual(404, resp.status_code)
 
@@ -53,7 +52,7 @@ class RequestsTestCase(TestCase):
             # add the parsed json data to the response
             r.data = r.json()
 
-        future = sess.get(httpbin('get'), background_callback=cb)
+        future = sess.get(self.httpbin.join('get'), background_callback=cb)
         # this should block until complete
         resp = future.result()
         self.assertEqual(200, resp.status_code)
@@ -63,18 +62,19 @@ class RequestsTestCase(TestCase):
         def rasing_cb(s, r):
             raise Exception('boom')
 
-        future = sess.get(httpbin('get'), background_callback=rasing_cb)
+        future = sess.get(
+            self.httpbin.join('get'), background_callback=rasing_cb
+        )
         with self.assertRaises(Exception) as cm:
             resp = future.result()
         self.assertEqual('boom', cm.exception.args[0])
 
-    @pytest.mark.network
     def test_supplied_session(self):
         """Tests the `session` keyword argument."""
         requests_session = session()
         requests_session.headers['Foo'] = 'bar'
         sess = FuturesSession(session=requests_session)
-        future = sess.get(httpbin('headers'))
+        future = sess.get(self.httpbin.join('headers'))
         self.assertIsInstance(future, Future)
         resp = future.result()
         self.assertIsInstance(resp, Response)
@@ -116,21 +116,19 @@ class RequestsTestCase(TestCase):
         )
         self.assertEqual(session.get_adapter('http://')._pool_connections, 20)
 
-    @pytest.mark.network
     def test_redirect(self):
         """Tests for the ability to cleanly handle redirects."""
         sess = FuturesSession()
-        future = sess.get(httpbin('redirect-to?url=get'))
+        future = sess.get(self.httpbin.join('redirect-to?url=get'))
         self.assertIsInstance(future, Future)
         resp = future.result()
         self.assertIsInstance(resp, Response)
         self.assertEqual(200, resp.status_code)
 
-        future = sess.get(httpbin('redirect-to?url=status/404'))
+        future = sess.get(self.httpbin.join('redirect-to?url=status/404'))
         resp = future.result()
         self.assertEqual(404, resp.status_code)
 
-    @pytest.mark.network
     def test_context(self):
         class FuturesSessionTestHelper(FuturesSession):
             def __init__(self, *args, **kwargs):
@@ -146,7 +144,7 @@ class RequestsTestCase(TestCase):
         passout = None
         with FuturesSessionTestHelper() as sess:
             passout = sess
-            future = sess.get(httpbin('get'))
+            future = sess.get(self.httpbin.join('get'))
             self.assertIsInstance(future, Future)
             resp = future.result()
             self.assertIsInstance(resp, Response)
@@ -187,18 +185,15 @@ class RequestsProcessPoolTestCase(TestCase):
         self.proc_executor = ProcessPoolExecutor(max_workers=2)
         self.session = session()
 
-    @pytest.mark.network
     @skipIf(session_required, 'not supported in python < 3.5')
     def test_futures_session(self):
         self._assert_futures_session()
 
-    @pytest.mark.network
     @skipIf(not session_required, 'fully supported on python >= 3.5')
     def test_exception_raised(self):
         with self.assertRaises(RuntimeError):
             self._assert_futures_session()
 
-    @pytest.mark.network
     def test_futures_existing_session(self):
         self.session.headers['Foo'] = 'bar'
         self._assert_futures_session(session=self.session)
@@ -210,19 +205,20 @@ class RequestsProcessPoolTestCase(TestCase):
         else:
             sess = FuturesSession(executor=self.proc_executor)
 
-        future = sess.get(httpbin('get'))
+        future = sess.get(self.httpbin.join('get'))
         self.assertIsInstance(future, Future)
         resp = future.result()
         self.assertIsInstance(resp, Response)
         self.assertEqual(200, resp.status_code)
 
         # non-200, 404
-        future = sess.get(httpbin('status/404'))
+        future = sess.get(self.httpbin.join('status/404'))
         resp = future.result()
         self.assertEqual(404, resp.status_code)
 
         future = sess.get(
-            httpbin('get'), background_callback=global_cb_modify_response
+            self.httpbin.join('get'),
+            background_callback=global_cb_modify_response,
         )
         # this should block until complete
         resp = future.result()
@@ -233,35 +229,36 @@ class RequestsProcessPoolTestCase(TestCase):
         self.assertTrue(hasattr(resp, 'data'))
 
         future = sess.get(
-            httpbin('get'), background_callback=global_cb_return_result
+            self.httpbin.join('get'),
+            background_callback=global_cb_return_result,
         )
         # this should block until complete
         resp = future.result()
         # make sure the callback was invoked
         self.assertIsInstance(resp, dict)
 
-        future = sess.get(httpbin('get'), background_callback=global_rasing_cb)
+        future = sess.get(
+            self.httpbin.join('get'), background_callback=global_rasing_cb
+        )
         with self.assertRaises(Exception) as cm:
             resp = future.result()
         self.assertEqual('boom', cm.exception.args[0])
 
         # Tests for the ability to cleanly handle redirects
-        future = sess.get(httpbin('redirect-to?url=get'))
+        future = sess.get(self.httpbin.join('redirect-to?url=get'))
         self.assertIsInstance(future, Future)
         resp = future.result()
         self.assertIsInstance(resp, Response)
         self.assertEqual(200, resp.status_code)
 
-        future = sess.get(httpbin('redirect-to?url=status/404'))
+        future = sess.get(self.httpbin.join('redirect-to?url=status/404'))
         resp = future.result()
         self.assertEqual(404, resp.status_code)
 
-    @pytest.mark.network
     @skipIf(session_required, 'not supported in python < 3.5')
     def test_context(self):
         self._assert_context()
 
-    @pytest.mark.network
     def test_context_with_session(self):
         self._assert_context(session=self.session)
 
@@ -275,7 +272,7 @@ class RequestsProcessPoolTestCase(TestCase):
         passout = None
         with helper_instance as sess:
             passout = sess
-            future = sess.get(httpbin('get'))
+            future = sess.get(self.httpbin.join('get'))
             self.assertIsInstance(future, Future)
             resp = future.result()
             self.assertIsInstance(resp, Response)
@@ -296,12 +293,11 @@ class TopLevelContextHelper(FuturesSession):
 
 @skipIf(not unsupported_platform, 'Exception raised when unsupported')
 class ProcessPoolExceptionRaisedTestCase(TestCase):
-    @pytest.mark.network
     def test_exception_raised(self):
         executor = ProcessPoolExecutor(max_workers=2)
         sess = FuturesSession(executor=executor, session=session())
         with self.assertRaises(RuntimeError):
-            sess.get(httpbin('get'))
+            sess.get(self.httpbin.join('get'))
 
 
 if __name__ == '__main__':

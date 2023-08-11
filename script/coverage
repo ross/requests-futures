@@ -41,7 +41,6 @@ grep -r -I --line-number "# pragma: +no.*cover" $SOURCE_DIR && {
 export PYTHONPATH=.:$PYTHONPATH
 
 # TODO: 
-# --disable-network \
 # --cov-fail-under=100 \
 pytest \
   --cov-reset \

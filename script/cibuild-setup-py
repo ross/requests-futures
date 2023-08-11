@@ -15,7 +15,6 @@ python setup.py build
 echo "## validate setup.py install ###################################################"
 python setup.py install
 echo "## validate tests can run against installed code ###############################"
-pip install pytest pytest-network
-# TODO: --disable-network
+pip install pytest pytest-httpbin
 pytest 
 echo "## complete ####################################################################"
