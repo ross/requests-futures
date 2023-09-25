@@ -18,7 +18,7 @@ cryptography==41.0.4
 decorator==5.1.1
 docutils==0.20.1
 flasgger==0.9.7.1
-gevent==23.7.0
+gevent==23.9.1
 greenlet==2.0.2
 httpbin==0.10.0
 importlib-metadata==6.8.0
