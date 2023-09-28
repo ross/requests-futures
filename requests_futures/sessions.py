@@ -24,6 +24,11 @@ from functools import partial
 from logging import getLogger
 from pickle import PickleError, dumps
 
+try:
+    import contextvars
+except ImportError:
+    contextvars = None
+
 from requests import Session
 from requests.adapters import DEFAULT_POOLSIZE, HTTPAdapter
 
@@ -115,6 +120,11 @@ class FuturesSession(Session):
                 dumps(func)
             except (TypeError, PickleError):
                 raise RuntimeError(PICKLE_ERROR)
+        elif contextvars:
+            # contextvars.Context objects are not pickleable, so we cannot do
+            # this when using ProcessPoolExecutor
+            ctx = contextvars.copy_context()
+            func = partial(ctx.run, func)
 
         return self.executor.submit(func, *args, **kwargs)
 
