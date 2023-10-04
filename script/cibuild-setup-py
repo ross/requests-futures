@@ -15,6 +15,6 @@ python setup.py build
 echo "## validate setup.py install ###################################################"
 python setup.py install
 echo "## validate tests can run against installed code ###############################"
-pip install pytest pytest-httpbin
+pip install pytest pytest-httpbin 'Werkzeug<3.0.0'
 pytest 
 echo "## complete ####################################################################"
