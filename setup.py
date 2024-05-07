@@ -22,7 +22,7 @@ tests_require = (
     'pytest>=6.2.5',
     'pytest-cov>=3.0.0',
     'pytest-httpbin>=2.0.0',
-    'Werkzeug<3.0.0',
+    'Werkzeug>=3.0.3',
 )
 
 setup(
