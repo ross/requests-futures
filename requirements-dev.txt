@@ -15,7 +15,7 @@ coverage==7.5.3
 decorator==5.1.1
 docutils==0.20.1
 flasgger==0.9.7.1
-greenlet==3.0.0
+greenlet==2.0.2
 httpbin==0.10.2
 importlib_metadata==7.1.0
 iniconfig==2.0.0

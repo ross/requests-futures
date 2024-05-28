@@ -19,7 +19,7 @@ packages = ['requests_futures']
 requires = ['requests>=1.2.0']
 
 tests_require = (
-    'greenlet<=3.0',
+    'greenlet==2.0.2',
     'pytest>=6.2.5',
     'pytest-cov>=3.0.0',
     'pytest-httpbin>=2.0.0',
