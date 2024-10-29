@@ -8,11 +8,11 @@ jobs:
       fail-fast: false
       matrix:
         # Tested versions based on dates in https://devguide.python.org/versions/#versions
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.9', '3.10', '3.11', '3.12', "3.13"]
     steps:
       - uses: actions/checkout@master
       - name: Setup python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
@@ -27,11 +27,11 @@ jobs:
   setup-py:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.13'
           architecture: x64
       - name: CI setup.py
         run: |
