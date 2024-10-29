@@ -7,14 +7,15 @@ echo "## create test venv ######################################################
 TMP_DIR=$(mktemp -d -t ci-XXXXXXXXXX)
 python3 -m venv $TMP_DIR
 . "$TMP_DIR/bin/activate"
+pip install build setuptools
 echo "## environment & versions ######################################################"
 python --version
 pip --version
 echo "## validate setup.py build #####################################################"
-python setup.py build
-echo "## validate setup.py install ###################################################"
-python setup.py install
+python -m build --sdist --wheel
+echo "## validate wheel install ###################################################"
+pip install dist/*$VERSION*.whl
 echo "## validate tests can run against installed code ###############################"
-pip install pytest pytest-httpbin 'Werkzeug<3.0.0'
-pytest 
+pip install pytest pytest-httpbin Werkzeug
+pytest --disable-network
 echo "## complete ####################################################################"
