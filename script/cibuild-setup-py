@@ -17,5 +17,5 @@ echo "## validate wheel install ################################################
 pip install dist/*$VERSION*.whl
 echo "## validate tests can run against installed code ###############################"
 pip install pytest pytest-httpbin Werkzeug
-pytest --disable-network
+pytest
 echo "## complete ####################################################################"
