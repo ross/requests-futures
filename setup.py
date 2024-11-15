@@ -48,7 +48,7 @@ setup(
     long_description=open('README.rst').read(),
     long_description_content_type='text/x-rst',
     author='Ross McFarland',
-    author_email='rwmcfa1@rwmcfa1.com',
+    author_email='rwmcfa1@gmail.com',
     packages=packages,
     package_dir={'requests_futures': 'requests_futures'},
     package_data={'requests_futures': ['LICENSE', 'README.rst']},
