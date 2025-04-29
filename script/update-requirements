@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
+import re
 from os.path import join
 from subprocess import check_call, check_output
 from tempfile import TemporaryDirectory
-import re
 
 
 def print_packages(packages, heading):
@@ -37,8 +37,21 @@ with TemporaryDirectory() as tmpdir:
 # pip installs the module itself along with deps so we need to get that out of
 # our list by finding the thing that was file installed during dev
 frozen = sorted([p for p in frozen if not p.startswith(our_package_name)])
-dev_frozen = sorted([p for p in dev_frozen
-                     if not p.startswith(our_package_name)])
+dev_frozen = sorted(
+    [p for p in dev_frozen if not p.startswith(our_package_name)]
+)
+
+# special handling for greenlet until python 3.11 is gone due to it dropping
+# support for active versions early
+i = [i for i, r in enumerate(dev_frozen) if r.startswith('greenlet==')][0]
+dev_frozen = (
+    dev_frozen[:i]
+    + [
+        "greenlet==2.0.2; python_version<'3.12'",
+        f"{dev_frozen[i]}; python_version>='3.12.0rc0'",
+    ]
+    + dev_frozen[i + 1 :]
+)
 
 print_packages(frozen, 'frozen')
 print_packages(dev_frozen, 'dev_frozen')
