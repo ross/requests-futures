@@ -10,7 +10,8 @@ blinker==1.9.0
 brotlicffi==1.1.0.0
 build==1.2.2.post1
 cffi==1.17.1
-click==8.2.1
+click==8.1.8; python_version<'3.10'
+click==8.2.1; python_version>='3.10'
 coverage==7.8.2
 decorator==5.2.1
 docutils==0.20.1
