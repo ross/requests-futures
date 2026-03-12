@@ -18,14 +18,7 @@ packages = ['requests_futures']
 
 requires = ['requests>=1.2.0']
 
-tests_require = (
-    'greenlet<=2.0.2; python_version<"3.12"',
-    'greenlet>=3.0.0; python_version>="3.12.0rc0"',
-    'pytest>=6.2.5',
-    'pytest-cov>=3.0.0',
-    'pytest-httpbin>=2.0.0',
-    'Werkzeug>=3.0.6',
-)
+tests_require = ('pytest>=6.2.5', 'pytest-cov>=3.0.0', 'pytest-httpbin>=2.0.0')
 
 setup(
     name='requests-futures',
@@ -34,12 +27,13 @@ setup(
     extras_require={
         'dev': tests_require
         + (
-            'black>=24.3.0,<25.0.0',
+            'black>=26.0.0,<27.0.0',
             'build>=0.7.0',
             # docutils 0.21.x bumped to >=3.9 and 3.8 is still active. we'll
             # have to clamp it down until we remove 3.8
             'docutils<=0.20.1',
             'isort>=5.11.4',
+            'proviso',
             'pyflakes>=2.2.0',
             'readme_renderer[rst]>=26.0',
             'twine>=3.4.2',
