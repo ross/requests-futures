@@ -40,6 +40,7 @@ setup(
             # have to clamp it down until we remove 3.8
             'docutils<=0.20.1',
             'isort>=5.11.4',
+            'proviso',
             'pyflakes>=2.2.0',
             'readme_renderer[rst]>=26.0',
             'twine>=3.4.2',
