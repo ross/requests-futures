@@ -21,8 +21,7 @@ gevent==25.9.1; python_version=='3.10' or python_version=='3.11'
 greenlet==3.3.2
 h11==0.16.0
 hishel==1.1.9
-httpbin==0.10.0; python_version=='3.10' or python_version=='3.11'
-httpbin==0.10.2; python_version=='3.12' or python_version=='3.13' or python_version=='3.14'
+httpbin==0.10.2
 httpcore==1.0.9
 httpx==0.28.1
 id==1.6.1
@@ -65,7 +64,7 @@ rfc3986==2.0.0
 rich==14.3.3
 secretstorage==3.5.0
 setuptools==82.0.1
-six==1.17.0; python_version=='3.12' or python_version=='3.13' or python_version=='3.14'
+six==1.17.0
 tomli==2.4.0; python_version=='3.10'
 twine==6.2.0
 typing-extensions==4.15.0
