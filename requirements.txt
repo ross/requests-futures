@@ -50,7 +50,7 @@ pluggy==1.6.0
 proviso==0.2.0
 pycparser==3.0
 pyflakes==3.4.0
-pygments==2.19.2
+pygments==2.20.0
 pyproject-hooks==1.2.0
 pytest==9.0.2
 pytest-cov==7.0.0
