@@ -40,7 +40,7 @@ markdown-it-py==4.0.0
 markupsafe==3.0.3
 mdurl==0.1.2
 more-itertools==11.0.1
-msgpack==1.1.2
+msgpack==1.2.1
 mypy-extensions==1.1.0
 nh3==0.3.4
 packaging==26.0
