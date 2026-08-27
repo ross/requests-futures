@@ -1,3 +1,8 @@
+## v1.0.3 - 2026-08-27 - Falsy is not the same as missing
+
+* Fix `wrap()` discarding a `background_callback`'s falsy return value (e.g. `{}`, `[]`, `0`, `''`)
+  in favor of the `Response`, via `... or resp`
+
 ## v1.0.2 - 2024-11-15 - Helps if you have the address right
 
 * Correct setup.py email addr
