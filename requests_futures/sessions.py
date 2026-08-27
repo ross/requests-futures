@@ -50,7 +50,7 @@ class FuturesSession(Session):
         session=None,
         adapter_kwargs=None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         """Creates a FuturesSession
 
