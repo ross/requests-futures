@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -e
+
+cd "$(dirname -- "$(readlink -f -- "$0")")"/..
+
+if [ -z "$VENV_NAME" ]; then
+    VENV_NAME="env"
+fi
+
+ACTIVATE="$VENV_NAME/bin/activate"
+if [ ! -f "$ACTIVATE" ]; then
+    echo "$ACTIVATE does not exist, run ./script/bootstrap" >&2
+    exit 1
+fi
+. "$ACTIVATE"
+
+changelet "$@"

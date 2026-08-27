@@ -43,6 +43,7 @@ dev = [
     "pytest-httpbin>=2.0.0",
     "black>=26.0.0,<27.0.0",
     "build>=0.7.0",
+    "changelet",
     "isort>=5.11.4",
     "proviso",
     "pyflakes>=2.2.0",
@@ -69,3 +70,6 @@ line_length=80
 
 [tool.pytest.ini_options]
 pythonpath = "."
+
+[tool.changelet]
+module = "requests_futures"

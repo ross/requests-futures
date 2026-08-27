@@ -25,6 +25,11 @@ This repo follows the "Scripts to Rule Them All" convention: everything under `s
   *installed* package, to validate packaging.
 - `./script/update-requirements` — regenerates `requirements.txt` via `proviso`; never hand-edit that
   file.
+- `./script/changelog create --type <type> [--pr NUM] <description>` — creates a pending changelog
+  entry. Use `--add` to stage it or `--commit` to commit it with other staged changes.
+- `./script/changelog check` — verifies that the current branch adds a changelog entry.
+- `./script/changelog bump [--make-changes] <title>` — previews the next version and generated
+  changelog; `--make-changes` updates `CHANGELOG.md`, the package version, and consumes pending entries.
 - `./script/release` — maintainer-only: tags `v$__version__`, pushes the tag, builds, `twine upload`.
 
 The installed pre-commit hook runs lint + format check + coverage, so a commit fails locally if any of
@@ -51,11 +56,18 @@ The entire library is `requests_futures/sessions.py` (~200 lines), built around 
   `ThreadPoolExecutor` itself (no `executor=` passed). `close()` only shuts down the executor in that
   case, so a caller-supplied executor shared across multiple sessions survives. `max_workers` is
   ignored whenever `executor` is explicitly passed.
-- Connection-pool sizing: when the session owns its executor and `max_workers > DEFAULT_POOLSIZE`
-  (from `requests.adapters`), it mounts `HTTPAdapter`s with `pool_connections`/`pool_maxsize` raised to
-  `max_workers` — otherwise urllib3's default pool size throttles the extra worker threads.
-  `adapter_kwargs` is merged over those computed defaults and forces the adapter mount even when
-  sizing alone wouldn't trigger one.
+- Connection-pool sizing: when the executor is created here (not caller-supplied) and
+  `max_workers > DEFAULT_POOLSIZE` (from `requests.adapters`), `pool_connections`/`pool_maxsize` are
+  raised to `max_workers` — otherwise urllib3's default pool size throttles the extra worker threads.
+  `adapter_kwargs` is merged over those computed defaults and applies regardless of executor
+  ownership. Either way, sizing reconfigures the `HTTPAdapter`s already mounted on whichever session
+  will actually serve requests (the supplied `session=`, if any, otherwise the `FuturesSession`
+  itself) in place via `_configure_adapters()`/`init_poolmanager()`, rather than mounting fresh
+  adapters — so a supplied session's retry policy and any custom adapter subclass survive.
+  `_configure_adapters()` also drops the adapter's cached proxy managers (`init_poolmanager()`
+  doesn't touch them) whenever the pool settings actually change, so proxied requests pick up the
+  new size too; when they don't change, it's a no-op and existing pools/proxy managers are left
+  alone.
 - `background_callback` (invoked via `wrap()`) is deprecated in favor of requests' native `hooks`
   mechanism; it just logs a deprecation warning and is kept for back-compat.
 
@@ -75,13 +87,14 @@ modernizing it in unrelated changes.
 
 - Branch before making changes; never commit directly to `main`.
 - Before committing, run `./script/test`, `./script/coverage`, `./script/lint`, and `./script/format`.
-- Add a changelog entry for user-facing changes: this repo has no changelog-generation tool, so hand-edit
-  `CHANGELOG.md` following the existing `## vX.Y.Z - YYYY-MM-DD - <title>` + bullet-list format used by
-  prior entries, as part of the first commit on the branch.
+- Add a changelet entry as part of the first commit on the branch. Use `patch`, `minor`, or `major`
+  for user-facing changes and `none` for changes that should not appear in release notes. Keep the
+  description short and use `--pr NUM` only when backfilling an entry for an existing PR.
 - There is no coverage-report helper here; read `./script/coverage`'s `htmlcov/` output or its terminal
   report directly to find gaps.
 - Push with `git push --set-upstream origin <branch>`, then open the PR with
   `gh pr create --title "<title>" --body "<body>" --assignee "@me"`. Link related issues/PRs with
   `/cc #NUM REASON` (or `/cc Fixes #NUM` when the PR closes the issue), one per line, in the PR body.
-- The package version lives in `requests_futures/__init__.py` as `__version__`; `script/release` reads
-  it directly to compute the git tag.
+- The package version lives in `requests_futures/__init__.py` as `__version__`. Generate the release
+  changelog and version bump with `./script/changelog bump --make-changes <title>` before running
+  `script/release`, which reads that version to compute the git tag.
