@@ -24,7 +24,7 @@ jobs:
       - name: CI Build
         run: |
           ./script/cibuild
-  setup-py:
+  package:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +33,6 @@ jobs:
         with:
           python-version: "3.13"
           architecture: x64
-      - name: CI setup.py
+      - name: CI package build
         run: |
-          ./script/cibuild-setup-py
+          ./script/cibuild-package
