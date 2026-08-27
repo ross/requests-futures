@@ -6,6 +6,8 @@
 from concurrent.futures import Future, ProcessPoolExecutor
 from os import environ
 from sys import version_info
+from threading import Event, Thread
+from time import monotonic, sleep
 
 try:
     from sys import pypy_version_info
@@ -162,6 +164,33 @@ class RequestsTestCase(TestCase):
             self.assertEqual(200, resp.status_code)
 
         self.assertTrue(passout._exit_called)
+
+    def test_close_cancels_queued_requests(self):
+        request_started = Event()
+        finish_request = Event()
+        session = FuturesSession(max_workers=1)
+
+        def request():
+            request_started.set()
+            finish_request.wait()
+
+        running = session.executor.submit(request)
+        self.assertTrue(request_started.wait(timeout=1))
+        queued = session.executor.submit(lambda: None)
+        close_thread = Thread(target=session.close)
+        close_thread.start()
+
+        try:
+            deadline = monotonic() + 1
+            while not queued.done() and monotonic() < deadline:
+                sleep(0.01)
+            self.assertTrue(queued.cancelled())
+        finally:
+            finish_request.set()
+            close_thread.join(timeout=1)
+
+        self.assertFalse(close_thread.is_alive())
+        running.result()
 
 
 # << test process pool executor >>

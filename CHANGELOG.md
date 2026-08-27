@@ -1,3 +1,7 @@
+## v1.1.0 - 2026-08-27 - Cancel queued requests on close
+
+* Cancel requests that have not started when closing a session-owned executor
+
 ## v1.0.3 - 2026-08-27 - Falsy is not the same as missing
 
 * Fix `wrap()` discarding a `background_callback`'s falsy return value (e.g. `{}`, `[]`, `0`, `''`)
