@@ -69,6 +69,17 @@ class RequestsTestCase(TestCase):
             resp = future.result()
         self.assertEqual('boom', cm.exception.args[0])
 
+    def test_background_callback_falsy_return(self):
+        """A background_callback's falsy return value must not be
+        discarded in favor of the Response."""
+        sess = FuturesSession()
+
+        def cb(s, r):
+            return {}
+
+        future = sess.get(self.httpbin.join('get'), background_callback=cb)
+        self.assertEqual({}, future.result())
+
     def test_supplied_session(self):
         """Tests the `session` keyword argument."""
         requests_session = session()
