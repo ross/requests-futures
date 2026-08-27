@@ -55,6 +55,10 @@ The entire library is `requests_futures/sessions.py` (~200 lines), built around 
   will actually serve requests (the supplied `session=`, if any, otherwise the `FuturesSession`
   itself) in place via `_configure_adapters()`/`init_poolmanager()`, rather than mounting fresh
   adapters — so a supplied session's retry policy and any custom adapter subclass survive.
+  `_configure_adapters()` also drops the adapter's cached proxy managers (`init_poolmanager()`
+  doesn't touch them) whenever the pool settings actually change, so proxied requests pick up the
+  new size too; when they don't change, it's a no-op and existing pools/proxy managers are left
+  alone.
 - `background_callback` (invoked via `wrap()`) is deprecated in favor of requests' native `hooks`
   mechanism; it just logs a deprecation warning and is kept for back-compat.
 

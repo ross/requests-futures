@@ -205,6 +205,46 @@ class RequestsTestCase(TestCase):
         )
         self.assertIs(requests_session.get_adapter('http://'), mock_adapter)
 
+    def test_supplied_session_proxy_manager_resized(self):
+        """A supplied session's cached proxy managers must pick up new
+        pool sizing too, since `init_poolmanager` alone doesn't touch
+        them."""
+        requests_session = session()
+        adapter = requests_session.get_adapter('http://')
+        stale_proxy_manager = adapter.proxy_manager_for('http://proxy.example')
+        self.assertEqual(
+            stale_proxy_manager.connection_pool_kw['maxsize'], DEFAULT_POOLSIZE
+        )
+
+        FuturesSession(
+            session=requests_session,
+            max_workers=DEFAULT_POOLSIZE + 1,
+            adapter_kwargs={'pool_block': True},
+        )
+
+        # same adapter, but the proxy manager was rebuilt at the new size
+        self.assertIs(requests_session.get_adapter('http://'), adapter)
+        proxy_manager = adapter.proxy_manager_for('http://proxy.example')
+        self.assertIsNot(proxy_manager, stale_proxy_manager)
+        self.assertEqual(
+            proxy_manager.connection_pool_kw['maxsize'], DEFAULT_POOLSIZE + 1
+        )
+        self.assertTrue(proxy_manager.connection_pool_kw['block'])
+
+        # when pool settings are unchanged, the cached proxy manager (and
+        # its warm connections) is left alone
+        requests_session = session()
+        adapter = requests_session.get_adapter('http://')
+        cached_proxy_manager = adapter.proxy_manager_for('http://proxy.example')
+        FuturesSession(
+            session=requests_session, adapter_kwargs={'max_retries': 3}
+        )
+        self.assertIs(
+            adapter.proxy_manager_for('http://proxy.example'),
+            cached_proxy_manager,
+        )
+        self.assertEqual(adapter.max_retries.total, 3)
+
     def test_redirect(self):
         """Tests for the ability to cleanly handle redirects."""
         sess = FuturesSession()

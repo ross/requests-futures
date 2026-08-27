@@ -54,11 +54,30 @@ def _configure_adapters(session, adapter_kwargs):
                 adapter.max_retries = Retry(0, read=False)
             else:
                 adapter.max_retries = Retry.from_int(max_retries)
-        adapter.init_poolmanager(
-            adapter_kwargs.get('pool_connections', adapter._pool_connections),
-            adapter_kwargs.get('pool_maxsize', adapter._pool_maxsize),
-            block=adapter_kwargs.get('pool_block', adapter._pool_block),
+
+        pool_connections = adapter_kwargs.get(
+            'pool_connections', adapter._pool_connections
         )
+        pool_maxsize = adapter_kwargs.get('pool_maxsize', adapter._pool_maxsize)
+        pool_block = adapter_kwargs.get('pool_block', adapter._pool_block)
+        if (pool_connections, pool_maxsize, pool_block) == (
+            adapter._pool_connections,
+            adapter._pool_maxsize,
+            adapter._pool_block,
+        ):
+            # nothing to resize, leave the existing pools and their warm
+            # connections alone
+            continue
+
+        adapter.init_poolmanager(
+            pool_connections, pool_maxsize, block=pool_block
+        )
+        # cached proxy managers were built with the old pool settings and
+        # init_poolmanager() doesn't touch them, so drop them to be rebuilt
+        # from the new settings on next use
+        for proxy_manager in adapter.proxy_manager.values():
+            proxy_manager.clear()
+        adapter.proxy_manager.clear()
 
 
 PICKLE_ERROR = (
