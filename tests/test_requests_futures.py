@@ -5,6 +5,7 @@
 
 from concurrent.futures import Future, ProcessPoolExecutor
 from os import environ
+from os.path import basename
 from sys import version_info
 from threading import Event, Thread
 from time import monotonic, sleep
@@ -25,7 +26,6 @@ from requests_futures.sessions import PICKLE_ERROR, FuturesSession
 HTTPBIN = environ.get('HTTPBIN_URL', 'https://nghttp2.org/httpbin/')
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger('urllib3.connectionpool').level = logging.WARNING
-logging.getLogger('FuturesSession').level = logging.ERROR
 
 
 @pytest.fixture(scope="class", autouse=True)
@@ -81,6 +81,21 @@ class RequestsTestCase(TestCase):
 
         future = sess.get(self.httpbin.join('get'), background_callback=cb)
         self.assertEqual({}, future.result())
+
+    def test_background_callback_deprecated(self):
+        """A background_callback param must emit a DeprecationWarning
+        attributed to the caller, not to sessions.py."""
+        sess = FuturesSession()
+
+        def cb(s, r):
+            pass
+
+        with self.assertWarns(DeprecationWarning) as cm:
+            future = sess.get(self.httpbin.join('get'), background_callback=cb)
+        self.assertIn('hooks', str(cm.warning))
+        # pins stacklevel: the warning points at this file, not sessions.py
+        self.assertEqual(basename(__file__), basename(cm.filename))
+        future.result()
 
     def test_supplied_session(self):
         """Tests the `session` keyword argument."""

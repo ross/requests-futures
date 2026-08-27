@@ -70,7 +70,8 @@ The entire library is `requests_futures/sessions.py` (~200 lines), built around 
   new size too; when they don't change, it's a no-op and existing pools/proxy managers are left
   alone.
 - `background_callback` (invoked via `wrap()`) is deprecated in favor of requests' native `hooks`
-  mechanism; it just logs a deprecation warning and is kept for back-compat.
+  mechanism; it emits a `DeprecationWarning` via `warnings.warn()` (deduped/filterable by consumers,
+  unlike a log line) and is kept for back-compat, targeted for removal in 2.0.
 
 Tests (`tests/test_requests_futures.py`) run against a local `pytest-httpbin` server injected by the
 `httpbin_on_class` autouse fixture as `self.httpbin` (used as `self.httpbin.join('get')`) — not a live
