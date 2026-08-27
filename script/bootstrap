@@ -4,8 +4,7 @@
 
 set -e
 
-cd "$(dirname "$0")"/..
-ROOT=$(pwd)
+cd "$(dirname -- "$(readlink -f -- "$0")")"/..
 
 if [ -z "$VENV_NAME" ]; then
   VENV_NAME="env"
@@ -25,16 +24,22 @@ fi
 python -m pip install -U 'pip>=10.0.1'
 python -m pip install -r requirements.txt
 
-if [ -d ".git" ]; then
+# Use git itself because .git is a file in a linked worktree.
+if git rev-parse --git-dir >/dev/null 2>&1; then
   if [ -f ".git-blame-ignore-revs" ]; then
     echo ""
     echo "Setting blame.ignoreRevsFile to .git-blame-ingore-revs"
     git config --local blame.ignoreRevsFile .git-blame-ignore-revs
   fi
-  if [ ! -L ".git/hooks/pre-commit" ]; then
+
+  # Hooks are shared by all linked worktrees. Anchor the symlink to the
+  # primary checkout so removing a worktree cannot leave it dangling.
+  HOOKS_DIR="$(git rev-parse --git-path hooks)"
+  PRIMARY_ROOT="$(cd "$(dirname -- "$(git rev-parse --git-common-dir)")" && pwd)"
+  if [ ! -e "${HOOKS_DIR}/pre-commit" ]; then
     echo ""
     echo "Installing pre-commit hook"
-    ln -s "$ROOT/.git_hooks_pre-commit" ".git/hooks/pre-commit"
+    ln -sf "${PRIMARY_ROOT}/.git_hooks_pre-commit" "${HOOKS_DIR}/pre-commit"
   fi
 fi
 
