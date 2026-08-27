@@ -116,6 +116,28 @@ class RequestsTestCase(TestCase):
         )
         self.assertEqual(session.get_adapter('http://')._pool_connections, 20)
 
+    def test_adapter_kwargs_with_supplied_session(self):
+        """`adapter_kwargs`/`max_workers` sizing must apply to the
+        supplied `session`, since that's what actually serves requests."""
+        requests_session = session()
+        futures_session = FuturesSession(
+            session=requests_session, max_workers=DEFAULT_POOLSIZE + 1
+        )
+        adapter = requests_session.get_adapter('http://')
+        self.assertEqual(adapter._pool_connections, DEFAULT_POOLSIZE + 1)
+        self.assertEqual(adapter._pool_maxsize, DEFAULT_POOLSIZE + 1)
+        # the FuturesSession itself should be left with its defaults
+        self.assertEqual(
+            futures_session.get_adapter('http://')._pool_maxsize,
+            DEFAULT_POOLSIZE,
+        )
+
+        requests_session = session()
+        FuturesSession(
+            session=requests_session, adapter_kwargs={'pool_block': True}
+        )
+        self.assertTrue(requests_session.get_adapter('http://')._pool_block)
+
     def test_redirect(self):
         """Tests for the ability to cleanly handle redirects."""
         sess = FuturesSession()

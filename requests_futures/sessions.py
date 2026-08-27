@@ -78,8 +78,13 @@ class FuturesSession(Session):
         _adapter_kwargs.update(adapter_kwargs or {})
 
         if _adapter_kwargs:
-            self.mount('https://', HTTPAdapter(**_adapter_kwargs))
-            self.mount('http://', HTTPAdapter(**_adapter_kwargs))
+            # mount onto whichever session will actually serve requests:
+            # the supplied one, if any, otherwise self. `self.session`
+            # isn't assigned yet, so `session` (the constructor arg) is
+            # used directly here.
+            target = session or self
+            target.mount('https://', HTTPAdapter(**_adapter_kwargs))
+            target.mount('http://', HTTPAdapter(**_adapter_kwargs))
 
         self.executor = executor
         self.session = session
