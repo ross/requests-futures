@@ -168,9 +168,9 @@ class FuturesSession(Session):
         return self.executor.submit(func, *args, **kwargs)
 
     def close(self):
-        super(FuturesSession, self).close()
         if self._owned_executor:
             self.executor.shutdown(cancel_futures=True)
+        super(FuturesSession, self).close()
 
     def get(self, url, **kwargs):
         r"""

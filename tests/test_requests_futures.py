@@ -17,7 +17,7 @@ import logging
 from unittest import TestCase, main, skipIf
 
 import pytest
-from requests import Response, session
+from requests import Response, Session, session
 from requests.adapters import DEFAULT_POOLSIZE, BaseAdapter, HTTPAdapter, Retry
 
 from requests_futures.sessions import FuturesSession
@@ -297,11 +297,26 @@ class RequestsTestCase(TestCase):
     def test_close_cancels_queued_requests(self):
         request_started = Event()
         finish_request = Event()
+        request_finished = Event()
+        adapter_closed = Event()
+        adapter_closed_after_request = Event()
         session = FuturesSession(max_workers=1)
+
+        class TrackingAdapter(BaseAdapter):
+            def send(self, *args, **kwargs):
+                pass
+
+            def close(self):
+                if request_finished.is_set():
+                    adapter_closed_after_request.set()
+                adapter_closed.set()
+
+        session.mount('test://', TrackingAdapter())
 
         def request():
             request_started.set()
             finish_request.wait()
+            request_finished.set()
 
         running = session.executor.submit(request)
         self.assertTrue(request_started.wait(timeout=1))
@@ -320,6 +335,26 @@ class RequestsTestCase(TestCase):
 
         self.assertFalse(close_thread.is_alive())
         running.result()
+        self.assertTrue(adapter_closed.is_set())
+        self.assertTrue(adapter_closed_after_request.is_set())
+
+    def test_close_does_not_close_supplied_session(self):
+        class TrackingSession(Session):
+            def __init__(self):
+                super(TrackingSession, self).__init__()
+                self.close_calls = 0
+
+            def close(self):
+                self.close_calls += 1
+                super(TrackingSession, self).close()
+
+        requests_session = TrackingSession()
+        futures_session = FuturesSession(session=requests_session)
+        futures_session.close()
+
+        self.assertEqual(requests_session.close_calls, 0)
+        requests_session.close()
+        self.assertEqual(requests_session.close_calls, 1)
 
 
 # << test process pool executor >>
