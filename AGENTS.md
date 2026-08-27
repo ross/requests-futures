@@ -50,8 +50,9 @@ The entire library is `requests_futures/sessions.py` (~200 lines), built around 
 - `request()` deliberately builds `partial(Session.request, self)` rather than calling `super()` —
   calling `super()` would break pickling under `ProcessPoolExecutor`. The module-level `wrap()`
   function exists for the same reason (a bound method isn't picklable). Before submitting to a
-  `ProcessPoolExecutor`, it probes `dumps(func)` and raises `RuntimeError(PICKLE_ERROR)` on failure.
-  Any change to `request()` must preserve process-pool picklability.
+  `ProcessPoolExecutor`, it probes `dumps((func, args, kwargs))` — the function and its arguments,
+  since either can be unpicklable — and raises `RuntimeError(PICKLE_ERROR) from e`, chaining the
+  underlying pickling error. Any change to `request()` must preserve process-pool picklability.
 - Executor ownership: `_owned_executor` is only `True` when `FuturesSession` created the
   `ThreadPoolExecutor` itself (no `executor=` passed). `close()` only shuts down the executor in that
   case, so a caller-supplied executor shared across multiple sessions survives. `max_workers` is

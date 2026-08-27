@@ -20,7 +20,7 @@ import pytest
 from requests import Response, session
 from requests.adapters import DEFAULT_POOLSIZE, BaseAdapter, HTTPAdapter, Retry
 
-from requests_futures.sessions import FuturesSession
+from requests_futures.sessions import PICKLE_ERROR, FuturesSession
 
 HTTPBIN = environ.get('HTTPBIN_URL', 'https://nghttp2.org/httpbin/')
 logging.basicConfig(level=logging.DEBUG)
@@ -423,6 +423,53 @@ class RequestsProcessPoolTestCase(TestCase):
         future = sess.get(self.httpbin.join('redirect-to?url=status/404'))
         resp = future.result()
         self.assertEqual(404, resp.status_code)
+
+    def test_unpicklable_hooks_raises(self):
+        """A `hooks` callable that can't be pickled must raise RuntimeError
+        at submit time, not a raw pickling error out of the Future."""
+
+        def local_hook(r, *args, **kwargs):
+            return r
+
+        sess = FuturesSession(executor=self.proc_executor, session=self.session)
+        with self.assertRaises(RuntimeError) as cm:
+            sess.get(self.httpbin.join('get'), hooks={'response': local_hook})
+        self.assertEqual(PICKLE_ERROR, str(cm.exception))
+        self.assertIsNotNone(cm.exception.__cause__)
+
+    def test_unpicklable_data_raises(self):
+        """An unpicklable request argument (e.g. a file-like `data=`) must
+        raise RuntimeError at submit time."""
+        sess = FuturesSession(executor=self.proc_executor, session=self.session)
+        f = open(__file__)
+        try:
+            with self.assertRaises(RuntimeError) as cm:
+                sess.post(self.httpbin.join('post'), data=f)
+            self.assertEqual(PICKLE_ERROR, str(cm.exception))
+            self.assertIsNotNone(cm.exception.__cause__)
+        finally:
+            f.close()
+
+    def test_unpicklable_background_callback_raises(self):
+        """A local-function `background_callback` must raise RuntimeError
+        at submit time."""
+
+        def local_cb(s, r):
+            return r
+
+        sess = FuturesSession(executor=self.proc_executor, session=self.session)
+        with self.assertRaises(RuntimeError) as cm:
+            sess.get(self.httpbin.join('get'), background_callback=local_cb)
+        self.assertEqual(PICKLE_ERROR, str(cm.exception))
+        self.assertIsNotNone(cm.exception.__cause__)
+
+    def test_picklable_request_args_submitted(self):
+        """Ordinary picklable kwargs must still go through the widened
+        pickle check."""
+        sess = FuturesSession(executor=self.proc_executor, session=self.session)
+        future = sess.get(self.httpbin.join('get'), params={'a': 'b'})
+        resp = future.result()
+        self.assertEqual(200, resp.status_code)
 
     @skipIf(session_required, 'not supported in python < 3.5')
     def test_context(self):

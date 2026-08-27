@@ -23,7 +23,7 @@ releases of python.
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import partial
 from logging import getLogger
-from pickle import PickleError, dumps
+from pickle import dumps
 
 from requests import Session
 from requests.adapters import DEFAULT_POOLSIZE, DEFAULT_RETRIES, Retry
@@ -82,7 +82,7 @@ def _configure_adapters(session, adapter_kwargs):
 
 
 PICKLE_ERROR = (
-    'Cannot pickle function. Refer to documentation: https://'
+    'Cannot pickle request. Refer to documentation: https://'
     'github.com/ross/requests-futures/#using-processpoolexecutor'
 )
 
@@ -141,6 +141,12 @@ class FuturesSession(Session):
         response in the background, e.g. call resp.json() so that json parsing
         happens in the background thread.
 
+        When the executor is a `ProcessPoolExecutor`, the function *and* its
+        arguments must all be picklable, since that's what gets sent to the
+        worker process; this is verified up front so a bad `hooks` callable
+        or file-like `data=` raises `RuntimeError` here rather than a raw
+        pickling error out of the returned `Future`.
+
         :rtype : concurrent.futures.Future
         """
         if self.session:
@@ -159,11 +165,17 @@ class FuturesSession(Session):
             func = partial(wrap, self, func, background_callback)
 
         if isinstance(self.executor, ProcessPoolExecutor):
-            # verify function can be pickled
+            # verify the whole call can be pickled, not just the function;
+            # the executor pickles these same objects when submitting, so
+            # anything rejected here would have failed there too, but with
+            # a raw error out of future.result() instead of a pointer to
+            # the docs. Pickle's failure mode varies by object and python
+            # version, so the catch is broad; the original is preserved as
+            # __cause__.
             try:
-                dumps(func)
-            except (TypeError, PickleError):
-                raise RuntimeError(PICKLE_ERROR)
+                dumps((func, args, kwargs))
+            except Exception as e:
+                raise RuntimeError(PICKLE_ERROR) from e
 
         return self.executor.submit(func, *args, **kwargs)
 
