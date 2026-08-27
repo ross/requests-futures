@@ -51,11 +51,18 @@ The entire library is `requests_futures/sessions.py` (~200 lines), built around 
   `ThreadPoolExecutor` itself (no `executor=` passed). `close()` only shuts down the executor in that
   case, so a caller-supplied executor shared across multiple sessions survives. `max_workers` is
   ignored whenever `executor` is explicitly passed.
-- Connection-pool sizing: when the session owns its executor and `max_workers > DEFAULT_POOLSIZE`
-  (from `requests.adapters`), it mounts `HTTPAdapter`s with `pool_connections`/`pool_maxsize` raised to
-  `max_workers` — otherwise urllib3's default pool size throttles the extra worker threads.
-  `adapter_kwargs` is merged over those computed defaults and forces the adapter mount even when
-  sizing alone wouldn't trigger one.
+- Connection-pool sizing: when the executor is created here (not caller-supplied) and
+  `max_workers > DEFAULT_POOLSIZE` (from `requests.adapters`), `pool_connections`/`pool_maxsize` are
+  raised to `max_workers` — otherwise urllib3's default pool size throttles the extra worker threads.
+  `adapter_kwargs` is merged over those computed defaults and applies regardless of executor
+  ownership. Either way, sizing reconfigures the `HTTPAdapter`s already mounted on whichever session
+  will actually serve requests (the supplied `session=`, if any, otherwise the `FuturesSession`
+  itself) in place via `_configure_adapters()`/`init_poolmanager()`, rather than mounting fresh
+  adapters — so a supplied session's retry policy and any custom adapter subclass survive.
+  `_configure_adapters()` also drops the adapter's cached proxy managers (`init_poolmanager()`
+  doesn't touch them) whenever the pool settings actually change, so proxied requests pick up the
+  new size too; when they don't change, it's a no-op and existing pools/proxy managers are left
+  alone.
 - `background_callback` (invoked via `wrap()`) is deprecated in favor of requests' native `hooks`
   mechanism; it just logs a deprecation warning and is kept for back-compat.
 
