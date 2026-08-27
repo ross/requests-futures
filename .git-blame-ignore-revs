@@ -1,2 +1,5 @@
 # Commit that added in black formatting support
 7690e187ffb1a801c35e562c093cd1c2592fbd63
+
+# Reformat from pinning tool.black target-version
+7bc4904d300d812331727955b1c07a0380998fbd
