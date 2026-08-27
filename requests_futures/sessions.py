@@ -22,9 +22,9 @@ releases of python.
 
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
 from functools import partial
-from logging import getLogger
 from pickle import PickleError, dumps
 from threading import Lock
+from warnings import warn
 
 from requests import Session
 from requests.adapters import DEFAULT_POOLSIZE, DEFAULT_RETRIES, Retry
@@ -144,7 +144,8 @@ class FuturesSession(Session):
 
         The background_callback param allows you to do some processing on the
         response in the background, e.g. call resp.json() so that json parsing
-        happens in the background thread.
+        happens in the background thread. It is deprecated; use `hooks`
+        instead.
 
         :rtype : concurrent.futures.Future
         """
@@ -156,10 +157,13 @@ class FuturesSession(Session):
 
         background_callback = kwargs.pop('background_callback', None)
         if background_callback:
-            logger = getLogger(self.__class__.__name__)
-            logger.warning(
-                '`background_callback` is deprecated and will be '
-                'removed in 1.0, use `hooks` instead'
+            # stacklevel 4: warn -> request -> requests' Session.<verb> ->
+            # our <verb> -> caller
+            warn(
+                '`background_callback` is DEPRECATED. Use `hooks` instead. '
+                'Will be removed in 2.0.',
+                DeprecationWarning,
+                stacklevel=4,
             )
             func = partial(wrap, self, func, background_callback)
 
