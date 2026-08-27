@@ -306,7 +306,7 @@ In case pickling fails, an exception is raised pointing to this documentation.
                              session=Session())
     Traceback (most recent call last):
     ...
-    RuntimeError: Cannot pickle function. Refer to documentation: https://github.com/ross/requests-futures/#using-processpoolexecutor
+    RuntimeError: Cannot pickle request. Refer to documentation: https://github.com/ross/requests-futures/#using-processpoolexecutor
 
 .. IMPORTANT::
   * Python >= 3.4 required
