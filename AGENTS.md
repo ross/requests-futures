@@ -17,11 +17,11 @@ This repo follows the "Scripts to Rule Them All" convention: everything under `s
 - `./script/coverage [args...]` — pytest with branch coverage (html/xml/term reports). Also greps
   `requests_futures/` for `# pragma: no.*cover` and **fails if any is found** — coverage may not be
   disabled in this codebase.
-- `./script/lint` — pyflakes over `*.py requests_futures/*.py tests/*.py`.
+- `./script/lint` — pyflakes over `requests_futures/*.py tests/*.py`.
 - `./script/format [--check]` — isort then black (line-length 80, no string normalization, no magic
   trailing comma; see `pyproject.toml`). Use `--check` for a non-mutating run.
 - `./script/cibuild` — what CI runs: bootstrap, lint, format --check, coverage.
-- `./script/cibuild-setup-py` — builds sdist/wheel in a throwaway venv and runs tests against the
+- `./script/cibuild-package` — builds sdist/wheel in a throwaway venv and runs tests against the
   *installed* package, to validate packaging.
 - `./script/update-requirements` — regenerates `requirements.txt` via `proviso`; never hand-edit that
   file.
@@ -78,9 +78,9 @@ test cases require module-global callback functions and a module-global `Futures
 (`TopLevelContextHelper`) because anything submitted to a process pool must be picklable — follow that
 pattern for any new process-pool test.
 
-Python support matrix is 3.10–3.14 (see the CI matrix in `.github/workflows/`). `setup.py`'s
-classifiers are stale (still list 2.7/3.6-3.8) and the code still uses the py2-compatible
-`super(FuturesSession, self)` idiom rather than bare `super()` — match that existing style rather than
+Python support matrix is 3.10–3.14 (see the CI matrix in `.github/workflows/` and `requires-python` in
+`pyproject.toml`). The code still uses the py2-compatible `super(FuturesSession, self)` idiom rather
+than bare `super()` — match that existing style rather than
 modernizing it in unrelated changes.
 
 ## Workflow

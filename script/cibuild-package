@@ -3,6 +3,8 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+VERSION="$(grep "^__version__" "./requests_futures/__init__.py" | sed -e "s/.* = '//" -e "s/'$//")"
+
 echo "## create test venv ############################################################"
 TMP_DIR=$(mktemp -d -t ci-XXXXXXXXXX)
 python3 -m venv $TMP_DIR
@@ -11,11 +13,11 @@ pip install build setuptools
 echo "## environment & versions ######################################################"
 python --version
 pip --version
-echo "## validate setup.py build #####################################################"
+echo "## validate package build ######################################################"
 python -m build --sdist --wheel
 echo "## validate wheel install ###################################################"
-pip install dist/*$VERSION*.whl
+wheel_file=$(ls dist/*$VERSION*.whl)
+pip install "${wheel_file}[test]"
 echo "## validate tests can run against installed code ###############################"
-pip install pytest pytest-httpbin Werkzeug
 pytest
 echo "## complete ####################################################################"

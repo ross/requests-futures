@@ -1,7 +1,67 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "requests-futures"
+description = "Asynchronous Python HTTP for Humans."
+authors = [{name = "Ross McFarland", email = "rwmcfa1@gmail.com"}]
+readme = "README.rst"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dynamic = ["version"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "requests>=1.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ross/requests-futures"
+Source = "https://github.com/ross/requests-futures"
+Issues = "https://github.com/ross/requests-futures/issues"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=6.2.5",
+    "pytest-cov>=3.0.0",
+    "pytest-httpbin>=2.0.0",
+]
+dev = [
+    "pytest>=6.2.5",
+    "pytest-cov>=3.0.0",
+    "pytest-httpbin>=2.0.0",
+    "black>=26.0.0,<27.0.0",
+    "build>=0.7.0",
+    "changelet",
+    "isort>=5.11.4",
+    "proviso",
+    "pyflakes>=2.2.0",
+    "readme_renderer[rst]>=26.0",
+    "twine>=3.4.2",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "requests_futures.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["requests_futures*"]
+
 [tool.black]
 line-length=80
 skip-string-normalization=true
 skip-magic-trailing-comma=true
+target-version=["py310", "py311", "py312", "py313", "py314"]
 
 [tool.isort]
 profile = "black"

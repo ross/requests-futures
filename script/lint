@@ -15,6 +15,6 @@ if [ ! -f "$ACTIVATE" ]; then
 fi
 . "$ACTIVATE"
 
-SOURCES="*.py requests_futures/*.py tests/*.py"
+SOURCES="requests_futures/*.py tests/*.py"
 
 pyflakes $SOURCES

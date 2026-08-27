@@ -1,1 +1,4 @@
-include README.rst LICENSE test_requests_futures.py requirements.txt
+include README.rst
+include LICENSE
+include requirements.txt
+recursive-include tests *.py

@@ -2,7 +2,7 @@
 
 set -e
 
-SOURCES=$(find *.py requests_futures tests -name "*.py")
+SOURCES=$(find requests_futures tests -name "*.py")
 
 . env/bin/activate
 
