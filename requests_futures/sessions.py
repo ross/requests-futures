@@ -32,7 +32,8 @@ from requests.adapters import DEFAULT_POOLSIZE, DEFAULT_RETRIES, Retry
 def wrap(self, sup, background_callback, *args_, **kwargs_):
     """A global top-level is required for ProcessPoolExecutor"""
     resp = sup(*args_, **kwargs_)
-    return background_callback(self, resp) or resp
+    result = background_callback(self, resp)
+    return resp if result is None else result
 
 
 def _configure_adapters(session, adapter_kwargs):
@@ -169,7 +170,7 @@ class FuturesSession(Session):
     def close(self):
         super(FuturesSession, self).close()
         if self._owned_executor:
-            self.executor.shutdown()
+            self.executor.shutdown(cancel_futures=True)
 
     def get(self, url, **kwargs):
         r"""
