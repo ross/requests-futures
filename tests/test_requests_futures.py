@@ -356,6 +356,64 @@ class RequestsTestCase(TestCase):
         requests_session.close()
         self.assertEqual(requests_session.close_calls, 1)
 
+    def test_close_waits_for_requests_with_supplied_executor(self):
+        from concurrent.futures import ThreadPoolExecutor
+
+        request_started = Event()
+        finish_request = Event()
+        request_finished = Event()
+        adapter_closed = Event()
+        adapter_closed_after_request = Event()
+        executor = ThreadPoolExecutor(max_workers=1)
+        session = FuturesSession(executor=executor)
+        close_thread = None
+
+        class TrackingAdapter(BaseAdapter):
+            def send(self, request, **kwargs):
+                request_started.set()
+                finish_request.wait()
+                request_finished.set()
+                response = Response()
+                response.request = request
+                response.status_code = 200
+                response.url = request.url
+                return response
+
+            def close(self):
+                if request_finished.is_set():
+                    adapter_closed_after_request.set()
+                adapter_closed.set()
+
+        try:
+            session.mount('test://', TrackingAdapter())
+            running = session.get('test://running')
+            self.assertTrue(request_started.wait(timeout=1))
+            queued = session.get('test://queued')
+            unrelated = executor.submit(lambda: 'unrelated')
+            close_thread = Thread(target=session.close)
+            close_thread.start()
+
+            deadline = monotonic() + 1
+            while not queued.done() and monotonic() < deadline:
+                sleep(0.01)
+            self.assertTrue(queued.cancelled())
+            with self.assertRaisesRegex(RuntimeError, 'while closing'):
+                session.get('test://closing')
+
+            finish_request.set()
+            close_thread.join(timeout=1)
+            self.assertFalse(close_thread.is_alive())
+            self.assertEqual(running.result().status_code, 200)
+            self.assertEqual(unrelated.result(), 'unrelated')
+            self.assertTrue(adapter_closed.is_set())
+            self.assertTrue(adapter_closed_after_request.is_set())
+            self.assertTrue(executor.submit(lambda: True).result())
+        finally:
+            finish_request.set()
+            if close_thread:
+                close_thread.join(timeout=1)
+            executor.shutdown()
+
 
 # << test process pool executor >>
 # see discussion https://github.com/ross/requests-futures/issues/11

@@ -77,10 +77,12 @@ FutureSession will use an existing session object if supplied:
     my_session = session()
     future_session = FuturesSession(session=my_session)
 
-``FuturesSession.close()`` shuts down an executor it created, waiting for
-running requests and cancelling queued ones, before closing its own connection
-pools. An executor or session supplied to ``FuturesSession`` remains owned by
-the caller and is not shut down or closed automatically.
+``FuturesSession.close()`` waits for running requests and cancels queued ones
+before closing resources it owns. A supplied executor remains running and can
+be reused, but requests using ``FuturesSession``'s own connection pools are
+still drained. A supplied session is not closed automatically; when both an
+executor and session are supplied, their lifecycle remains the caller's
+responsibility.
 
 That's it. The api of requests.Session is preserved without any modifications
 beyond returning a Future rather than Response. As with all futures exceptions
