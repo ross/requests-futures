@@ -1,0 +1,23 @@
+name: Changelog
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch main
+        run: git fetch origin main --depth 1
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.14"
+          architecture: x64
+      - name: Setup environment
+        run: |
+          python -m pip install --upgrade pip
+          ./script/bootstrap
+      - name: Changelog check
+        run: ./script/changelog check

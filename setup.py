@@ -29,6 +29,7 @@ setup(
         + (
             'black>=26.0.0,<27.0.0',
             'build>=0.7.0',
+            'changelet',
             # docutils 0.21.x bumped to >=3.9 and 3.8 is still active. we'll
             # have to clamp it down until we remove 3.8
             'docutils<=0.20.1',
