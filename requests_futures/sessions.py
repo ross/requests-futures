@@ -26,13 +26,39 @@ from logging import getLogger
 from pickle import PickleError, dumps
 
 from requests import Session
-from requests.adapters import DEFAULT_POOLSIZE, HTTPAdapter
+from requests.adapters import DEFAULT_POOLSIZE, DEFAULT_RETRIES, Retry
 
 
 def wrap(self, sup, background_callback, *args_, **kwargs_):
     """A global top-level is required for ProcessPoolExecutor"""
     resp = sup(*args_, **kwargs_)
     return background_callback(self, resp) or resp
+
+
+def _configure_adapters(session, adapter_kwargs):
+    """Apply `adapter_kwargs` to the adapters already mounted on `session`.
+
+    Adapters are reconfigured in place, rather than replaced, so that a
+    supplied session keeps its retry policy and any custom adapter behavior
+    while still picking up the pool sizing.
+    """
+    for prefix in ('https://', 'http://'):
+        adapter = session.get_adapter(prefix)
+        if not hasattr(adapter, 'init_poolmanager'):
+            # not an HTTPAdapter, pool sizing doesn't apply, leave it alone
+            continue
+        if 'max_retries' in adapter_kwargs:
+            max_retries = adapter_kwargs['max_retries']
+            # matches HTTPAdapter.__init__'s own handling
+            if max_retries == DEFAULT_RETRIES:
+                adapter.max_retries = Retry(0, read=False)
+            else:
+                adapter.max_retries = Retry.from_int(max_retries)
+        adapter.init_poolmanager(
+            adapter_kwargs.get('pool_connections', adapter._pool_connections),
+            adapter_kwargs.get('pool_maxsize', adapter._pool_maxsize),
+            block=adapter_kwargs.get('pool_block', adapter._pool_block),
+        )
 
 
 PICKLE_ERROR = (
@@ -78,13 +104,10 @@ class FuturesSession(Session):
         _adapter_kwargs.update(adapter_kwargs or {})
 
         if _adapter_kwargs:
-            # mount onto whichever session will actually serve requests:
-            # the supplied one, if any, otherwise self. `self.session`
-            # isn't assigned yet, so `session` (the constructor arg) is
-            # used directly here.
-            target = session or self
-            target.mount('https://', HTTPAdapter(**_adapter_kwargs))
-            target.mount('http://', HTTPAdapter(**_adapter_kwargs))
+            # configure whichever session will actually serve requests: the
+            # supplied one, if any, otherwise self. `self.session` isn't
+            # assigned yet, so the `session` argument is used directly here.
+            _configure_adapters(session or self, _adapter_kwargs)
 
         self.executor = executor
         self.session = session

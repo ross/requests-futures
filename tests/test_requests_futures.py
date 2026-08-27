@@ -16,7 +16,7 @@ from unittest import TestCase, main, skipIf
 
 import pytest
 from requests import Response, session
-from requests.adapters import DEFAULT_POOLSIZE
+from requests.adapters import DEFAULT_POOLSIZE, BaseAdapter, HTTPAdapter, Retry
 
 from requests_futures.sessions import FuturesSession
 
@@ -137,6 +137,73 @@ class RequestsTestCase(TestCase):
             session=requests_session, adapter_kwargs={'pool_block': True}
         )
         self.assertTrue(requests_session.get_adapter('http://')._pool_block)
+
+    def test_supplied_session_adapter_preserved(self):
+        """Applying pool sizing to a supplied session must reconfigure its
+        existing adapters in place rather than replace them, so retry
+        policy and custom adapter behavior survive."""
+        requests_session = session()
+        retrying_adapter = HTTPAdapter(
+            max_retries=Retry(total=5), pool_block=True
+        )
+        requests_session.mount('https://', retrying_adapter)
+        FuturesSession(
+            session=requests_session, max_workers=DEFAULT_POOLSIZE + 1
+        )
+        adapter = requests_session.get_adapter('https://')
+        self.assertIs(adapter, retrying_adapter)
+        self.assertEqual(adapter.max_retries.total, 5)
+        self.assertTrue(adapter._pool_block)
+        self.assertEqual(adapter._pool_connections, DEFAULT_POOLSIZE + 1)
+        self.assertEqual(adapter._pool_maxsize, DEFAULT_POOLSIZE + 1)
+        self.assertEqual(
+            adapter.poolmanager.connection_pool_kw['maxsize'],
+            DEFAULT_POOLSIZE + 1,
+        )
+
+        # a custom adapter subclass keeps its class and its own attributes
+        class CustomAdapter(HTTPAdapter):
+            def __init__(self, marker, **kwargs):
+                self.marker = marker
+                super(CustomAdapter, self).__init__(**kwargs)
+
+        requests_session = session()
+        custom_adapter = CustomAdapter('mine')
+        requests_session.mount('https://', custom_adapter)
+        FuturesSession(
+            session=requests_session, max_workers=DEFAULT_POOLSIZE + 1
+        )
+        adapter = requests_session.get_adapter('https://')
+        self.assertIs(adapter, custom_adapter)
+        self.assertIsInstance(adapter, CustomAdapter)
+        self.assertEqual(adapter.marker, 'mine')
+        self.assertEqual(adapter._pool_maxsize, DEFAULT_POOLSIZE + 1)
+
+        # adapter_kwargs' max_retries is applied the same way
+        requests_session = session()
+        requests_session.mount('https://', HTTPAdapter())
+        FuturesSession(
+            session=requests_session, adapter_kwargs={'max_retries': 3}
+        )
+        self.assertEqual(
+            requests_session.get_adapter('https://').max_retries.total, 3
+        )
+
+        # a non-HTTPAdapter is left alone rather than blowing up
+        class MockAdapter(BaseAdapter):
+            def send(self, *args, **kwargs):
+                pass
+
+            def close(self):
+                pass
+
+        requests_session = session()
+        mock_adapter = MockAdapter()
+        requests_session.mount('http://', mock_adapter)
+        FuturesSession(
+            session=requests_session, max_workers=DEFAULT_POOLSIZE + 1
+        )
+        self.assertIs(requests_session.get_adapter('http://'), mock_adapter)
 
     def test_redirect(self):
         """Tests for the ability to cleanly handle redirects."""
