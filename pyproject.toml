@@ -10,3 +10,6 @@ line_length=80
 
 [tool.pytest.ini_options]
 pythonpath = "."
+
+[tool.changelet]
+module = "requests_futures"
