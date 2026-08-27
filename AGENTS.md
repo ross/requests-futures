@@ -30,6 +30,10 @@ This repo follows the "Scripts to Rule Them All" convention: everything under `s
 The installed pre-commit hook runs lint + format check + coverage, so a commit fails locally if any of
 those fail — running them yourself before committing avoids a rejected commit.
 
+Each linked `git worktree` needs its own `./script/bootstrap` run because each worktree has its own
+`env/` virtualenv. The pre-commit hook is installed once in Git's shared hooks directory and runs the
+checks from the worktree being committed.
+
 ## Architecture
 
 The entire library is `requests_futures/sessions.py` (~200 lines), built around one class,

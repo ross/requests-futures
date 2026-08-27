@@ -32,7 +32,8 @@ from requests.adapters import DEFAULT_POOLSIZE, HTTPAdapter
 def wrap(self, sup, background_callback, *args_, **kwargs_):
     """A global top-level is required for ProcessPoolExecutor"""
     resp = sup(*args_, **kwargs_)
-    return background_callback(self, resp) or resp
+    result = background_callback(self, resp)
+    return resp if result is None else result
 
 
 PICKLE_ERROR = (
