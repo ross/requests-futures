@@ -2,9 +2,9 @@
 
 set -e
 
-HOOKS=$(dirname "$0")
-GIT=$(dirname "$HOOKS")
-ROOT=$(dirname "$GIT")
+# Resolve the worktree being committed, rather than the checkout containing
+# the shared hook symlink.
+ROOT=$(git rev-parse --show-toplevel)
 
 . "$ROOT/env/bin/activate"
 "$ROOT/script/lint"
