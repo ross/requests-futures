@@ -538,7 +538,9 @@ def global_cb_modify_response(s, r):
     assert s, FuturesSession
     assert r, Response
     r.data = r.json()
-    r.__attrs__.append('data')  # required for pickling new attribute
+    # reassign rather than .append(): __attrs__ is a class attribute
+    # shared by every Response, and workers are reused across requests
+    r.__attrs__ = r.__attrs__ + ['data']
 
 
 def global_cb_return_result(s, r):
@@ -556,7 +558,9 @@ def global_hook_mark_response(response, *args, **kwargs):
     """A `hooks={'response': fn}` callable, module-global because anything
     submitted to a ProcessPoolExecutor must be picklable."""
     response.hooked = True
-    response.__attrs__.append('hooked')  # required for pickling new attribute
+    # reassign rather than .append(): __attrs__ is a class attribute
+    # shared by every Response, and workers are reused across requests
+    response.__attrs__ = response.__attrs__ + ['hooked']
 
 
 class RequestsProcessPoolTestCase(TestCase):
