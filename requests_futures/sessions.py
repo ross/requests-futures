@@ -22,7 +22,7 @@ releases of python.
 
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
 from functools import partial
-from pickle import PickleError, dumps
+from pickle import dumps
 from threading import Lock
 from warnings import warn
 
@@ -83,7 +83,7 @@ def _configure_adapters(session, adapter_kwargs):
 
 
 PICKLE_ERROR = (
-    'Cannot pickle function. Refer to documentation: https://'
+    'Cannot pickle request. Refer to documentation: https://'
     'github.com/ross/requests-futures/#using-processpoolexecutor'
 )
 
@@ -114,7 +114,7 @@ class FuturesSession(Session):
         self._pending_futures = set()
         self._pending_futures_lock = Lock()
         self._close_lock = Lock()
-        self._closing = False
+        self._closed = False
         if executor is None:
             executor = ThreadPoolExecutor(max_workers=max_workers)
             # set connection pool size equal to max_workers if needed
@@ -147,6 +147,12 @@ class FuturesSession(Session):
         happens in the background thread. It is deprecated; use `hooks`
         instead.
 
+        When the executor is a `ProcessPoolExecutor`, the function *and* its
+        arguments must all be picklable, since that's what gets sent to the
+        worker process; this is verified up front so a bad `hooks` callable
+        or file-like `data=` raises `RuntimeError` here rather than a raw
+        pickling error out of the returned `Future`.
+
         :rtype : concurrent.futures.Future
         """
         if self.session:
@@ -168,18 +174,24 @@ class FuturesSession(Session):
             func = partial(wrap, self, func, background_callback)
 
         if isinstance(self.executor, ProcessPoolExecutor):
-            # verify function can be pickled
+            # verify the whole call can be pickled, not just the function;
+            # the executor pickles these same objects when submitting, so
+            # anything rejected here would have failed there too, but with
+            # a raw error out of future.result() instead of a pointer to
+            # the docs. Pickle's failure mode varies by object and python
+            # version, so the catch is broad; the original is preserved as
+            # __cause__.
             try:
-                dumps(func)
-            except (TypeError, PickleError):
-                raise RuntimeError(PICKLE_ERROR)
+                dumps((func, args, kwargs))
+            except Exception as e:
+                raise RuntimeError(PICKLE_ERROR) from e
 
         if self._owned_executor or self.session:
             return self.executor.submit(func, *args, **kwargs)
 
         with self._pending_futures_lock:
-            if self._closing:
-                raise RuntimeError('cannot schedule new futures while closing')
+            if self._closed:
+                raise RuntimeError('cannot schedule new futures after close')
             future = self.executor.submit(func, *args, **kwargs)
             self._pending_futures.add(future)
         future.add_done_callback(self._remove_pending_future)
@@ -195,16 +207,12 @@ class FuturesSession(Session):
                 self.executor.shutdown(cancel_futures=True)
             elif not self.session:
                 with self._pending_futures_lock:
-                    self._closing = True
+                    self._closed = True
                     pending_futures = tuple(self._pending_futures)
-                try:
-                    for future in pending_futures:
-                        future.cancel()
-                    wait(pending_futures)
-                    super(FuturesSession, self).close()
-                finally:
-                    with self._pending_futures_lock:
-                        self._closing = False
+                for future in pending_futures:
+                    future.cancel()
+                wait(pending_futures)
+                super(FuturesSession, self).close()
                 return
             super(FuturesSession, self).close()
 

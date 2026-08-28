@@ -21,7 +21,7 @@ import pytest
 from requests import Response, Session, session
 from requests.adapters import DEFAULT_POOLSIZE, BaseAdapter, HTTPAdapter, Retry
 
-from requests_futures.sessions import FuturesSession
+from requests_futures.sessions import PICKLE_ERROR, FuturesSession
 
 HTTPBIN = environ.get('HTTPBIN_URL', 'https://nghttp2.org/httpbin/')
 logging.basicConfig(level=logging.DEBUG)
@@ -381,7 +381,7 @@ class RequestsTestCase(TestCase):
         adapter_closed_after_request = Event()
         executor = ThreadPoolExecutor(max_workers=1)
         session = FuturesSession(executor=executor)
-        close_thread = None
+        close_threads = []
 
         class TrackingAdapter(BaseAdapter):
             def send(self, request, **kwargs):
@@ -405,27 +405,39 @@ class RequestsTestCase(TestCase):
             self.assertTrue(request_started.wait(timeout=1))
             queued = session.get('test://queued')
             unrelated = executor.submit(lambda: 'unrelated')
-            close_thread = Thread(target=session.close)
-            close_thread.start()
+            close_threads = [Thread(target=session.close) for _ in range(2)]
+            for close_thread in close_threads:
+                close_thread.start()
 
             deadline = monotonic() + 1
             while not queued.done() and monotonic() < deadline:
                 sleep(0.01)
             self.assertTrue(queued.cancelled())
-            with self.assertRaisesRegex(RuntimeError, 'while closing'):
+            self.assertTrue(
+                all(close_thread.is_alive() for close_thread in close_threads)
+            )
+            with self.assertRaisesRegex(RuntimeError, 'after close'):
                 session.get('test://closing')
 
             finish_request.set()
-            close_thread.join(timeout=1)
-            self.assertFalse(close_thread.is_alive())
+            for close_thread in close_threads:
+                close_thread.join(timeout=1)
+            self.assertTrue(
+                all(
+                    not close_thread.is_alive()
+                    for close_thread in close_threads
+                )
+            )
             self.assertEqual(running.result().status_code, 200)
             self.assertEqual(unrelated.result(), 'unrelated')
             self.assertTrue(adapter_closed.is_set())
             self.assertTrue(adapter_closed_after_request.is_set())
+            with self.assertRaisesRegex(RuntimeError, 'after close'):
+                session.get('test://closed')
             self.assertTrue(executor.submit(lambda: True).result())
         finally:
             finish_request.set()
-            if close_thread:
+            for close_thread in close_threads:
                 close_thread.join(timeout=1)
             executor.shutdown()
 
@@ -531,6 +543,53 @@ class RequestsProcessPoolTestCase(TestCase):
         future = sess.get(self.httpbin.join('redirect-to?url=status/404'))
         resp = future.result()
         self.assertEqual(404, resp.status_code)
+
+    def test_unpicklable_hooks_raises(self):
+        """A `hooks` callable that can't be pickled must raise RuntimeError
+        at submit time, not a raw pickling error out of the Future."""
+
+        def local_hook(r, *args, **kwargs):
+            return r
+
+        sess = FuturesSession(executor=self.proc_executor, session=self.session)
+        with self.assertRaises(RuntimeError) as cm:
+            sess.get(self.httpbin.join('get'), hooks={'response': local_hook})
+        self.assertEqual(PICKLE_ERROR, str(cm.exception))
+        self.assertIsNotNone(cm.exception.__cause__)
+
+    def test_unpicklable_data_raises(self):
+        """An unpicklable request argument (e.g. a file-like `data=`) must
+        raise RuntimeError at submit time."""
+        sess = FuturesSession(executor=self.proc_executor, session=self.session)
+        f = open(__file__)
+        try:
+            with self.assertRaises(RuntimeError) as cm:
+                sess.post(self.httpbin.join('post'), data=f)
+            self.assertEqual(PICKLE_ERROR, str(cm.exception))
+            self.assertIsNotNone(cm.exception.__cause__)
+        finally:
+            f.close()
+
+    def test_unpicklable_background_callback_raises(self):
+        """A local-function `background_callback` must raise RuntimeError
+        at submit time."""
+
+        def local_cb(s, r):
+            return r
+
+        sess = FuturesSession(executor=self.proc_executor, session=self.session)
+        with self.assertRaises(RuntimeError) as cm:
+            sess.get(self.httpbin.join('get'), background_callback=local_cb)
+        self.assertEqual(PICKLE_ERROR, str(cm.exception))
+        self.assertIsNotNone(cm.exception.__cause__)
+
+    def test_picklable_request_args_submitted(self):
+        """Ordinary picklable kwargs must still go through the widened
+        pickle check."""
+        sess = FuturesSession(executor=self.proc_executor, session=self.session)
+        future = sess.get(self.httpbin.join('get'), params={'a': 'b'})
+        resp = future.result()
+        self.assertEqual(200, resp.status_code)
 
     @skipIf(session_required, 'not supported in python < 3.5')
     def test_context(self):
