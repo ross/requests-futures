@@ -18,7 +18,7 @@ import logging
 from unittest import TestCase, main, skipIf
 
 import pytest
-from requests import Response, session
+from requests import Response, Session, session
 from requests.adapters import DEFAULT_POOLSIZE, BaseAdapter, HTTPAdapter, Retry
 
 from requests_futures.sessions import PICKLE_ERROR, FuturesSession
@@ -312,11 +312,26 @@ class RequestsTestCase(TestCase):
     def test_close_cancels_queued_requests(self):
         request_started = Event()
         finish_request = Event()
+        request_finished = Event()
+        adapter_closed = Event()
+        adapter_closed_after_request = Event()
         session = FuturesSession(max_workers=1)
+
+        class TrackingAdapter(BaseAdapter):
+            def send(self, *args, **kwargs):
+                pass
+
+            def close(self):
+                if request_finished.is_set():
+                    adapter_closed_after_request.set()
+                adapter_closed.set()
+
+        session.mount('test://', TrackingAdapter())
 
         def request():
             request_started.set()
             finish_request.wait()
+            request_finished.set()
 
         running = session.executor.submit(request)
         self.assertTrue(request_started.wait(timeout=1))
@@ -335,6 +350,96 @@ class RequestsTestCase(TestCase):
 
         self.assertFalse(close_thread.is_alive())
         running.result()
+        self.assertTrue(adapter_closed.is_set())
+        self.assertTrue(adapter_closed_after_request.is_set())
+
+    def test_close_does_not_close_supplied_session(self):
+        class TrackingSession(Session):
+            def __init__(self):
+                super(TrackingSession, self).__init__()
+                self.close_calls = 0
+
+            def close(self):
+                self.close_calls += 1
+                super(TrackingSession, self).close()
+
+        requests_session = TrackingSession()
+        futures_session = FuturesSession(session=requests_session)
+        futures_session.close()
+
+        self.assertEqual(requests_session.close_calls, 0)
+        requests_session.close()
+        self.assertEqual(requests_session.close_calls, 1)
+
+    def test_close_waits_for_requests_with_supplied_executor(self):
+        from concurrent.futures import ThreadPoolExecutor
+
+        request_started = Event()
+        finish_request = Event()
+        request_finished = Event()
+        adapter_closed = Event()
+        adapter_closed_after_request = Event()
+        executor = ThreadPoolExecutor(max_workers=1)
+        session = FuturesSession(executor=executor)
+        close_threads = []
+
+        class TrackingAdapter(BaseAdapter):
+            def send(self, request, **kwargs):
+                request_started.set()
+                finish_request.wait()
+                request_finished.set()
+                response = Response()
+                response.request = request
+                response.status_code = 200
+                response.url = request.url
+                return response
+
+            def close(self):
+                if request_finished.is_set():
+                    adapter_closed_after_request.set()
+                adapter_closed.set()
+
+        try:
+            session.mount('test://', TrackingAdapter())
+            running = session.get('test://running')
+            self.assertTrue(request_started.wait(timeout=1))
+            queued = session.get('test://queued')
+            unrelated = executor.submit(lambda: 'unrelated')
+            close_threads = [Thread(target=session.close) for _ in range(2)]
+            for close_thread in close_threads:
+                close_thread.start()
+
+            deadline = monotonic() + 1
+            while not queued.done() and monotonic() < deadline:
+                sleep(0.01)
+            self.assertTrue(queued.cancelled())
+            self.assertTrue(
+                all(close_thread.is_alive() for close_thread in close_threads)
+            )
+            with self.assertRaisesRegex(RuntimeError, 'after close'):
+                session.get('test://closing')
+
+            finish_request.set()
+            for close_thread in close_threads:
+                close_thread.join(timeout=1)
+            self.assertTrue(
+                all(
+                    not close_thread.is_alive()
+                    for close_thread in close_threads
+                )
+            )
+            self.assertEqual(running.result().status_code, 200)
+            self.assertEqual(unrelated.result(), 'unrelated')
+            self.assertTrue(adapter_closed.is_set())
+            self.assertTrue(adapter_closed_after_request.is_set())
+            with self.assertRaisesRegex(RuntimeError, 'after close'):
+                session.get('test://closed')
+            self.assertTrue(executor.submit(lambda: True).result())
+        finally:
+            finish_request.set()
+            for close_thread in close_threads:
+                close_thread.join(timeout=1)
+            executor.shutdown()
 
 
 # << test process pool executor >>

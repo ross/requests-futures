@@ -20,9 +20,10 @@ releases of python.
 
 """
 
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
 from functools import partial
 from pickle import dumps
+from threading import Lock
 from warnings import warn
 
 from requests import Session
@@ -110,6 +111,10 @@ class FuturesSession(Session):
         _adapter_kwargs = {}
         super(FuturesSession, self).__init__(*args, **kwargs)
         self._owned_executor = executor is None
+        self._pending_futures = set()
+        self._pending_futures_lock = Lock()
+        self._close_lock = Lock()
+        self._closed = False
         if executor is None:
             executor = ThreadPoolExecutor(max_workers=max_workers)
             # set connection pool size equal to max_workers if needed
@@ -181,12 +186,35 @@ class FuturesSession(Session):
             except Exception as e:
                 raise RuntimeError(PICKLE_ERROR) from e
 
-        return self.executor.submit(func, *args, **kwargs)
+        if self._owned_executor or self.session:
+            return self.executor.submit(func, *args, **kwargs)
+
+        with self._pending_futures_lock:
+            if self._closed:
+                raise RuntimeError('cannot schedule new futures after close')
+            future = self.executor.submit(func, *args, **kwargs)
+            self._pending_futures.add(future)
+        future.add_done_callback(self._remove_pending_future)
+        return future
+
+    def _remove_pending_future(self, future):
+        with self._pending_futures_lock:
+            self._pending_futures.discard(future)
 
     def close(self):
-        super(FuturesSession, self).close()
-        if self._owned_executor:
-            self.executor.shutdown(cancel_futures=True)
+        with self._close_lock:
+            if self._owned_executor:
+                self.executor.shutdown(cancel_futures=True)
+            elif not self.session:
+                with self._pending_futures_lock:
+                    self._closed = True
+                    pending_futures = tuple(self._pending_futures)
+                for future in pending_futures:
+                    future.cancel()
+                wait(pending_futures)
+                super(FuturesSession, self).close()
+                return
+            super(FuturesSession, self).close()
 
     def get(self, url, **kwargs):
         r"""
