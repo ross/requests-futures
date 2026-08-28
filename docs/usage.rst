@@ -110,15 +110,30 @@ Error handling across the future boundary
 Two different kinds of error surface at two different points:
 
 * **At submit time** -- i.e. from the ``session.get(...)`` call itself.
-  This only happens for problems `request()` can detect before handing the
-  work off: submitting after :meth:`~requests_futures.sessions.FuturesSession.close`
-  on a session with a supplied ``executor=`` and no ``session=`` raises
-  ``RuntimeError('cannot schedule new futures after close')``, and, when the
-  executor is a :class:`~concurrent.futures.ProcessPoolExecutor`, an
-  unpicklable callable or argument (a local function passed as `hooks`, a
-  file-like `data=`) raises ``RuntimeError`` with a pointer to the
-  :ref:`ProcessPoolExecutor section <processpoolexecutor>` below, chaining
-  the original pickling error as ``__cause__``.
+  This happens for problems `request()` (or the executor it hands work to)
+  can detect before the request ever runs:
+
+  * When the executor is a :class:`~concurrent.futures.ProcessPoolExecutor`,
+    an unpicklable callable or argument (a local function passed as
+    `hooks`, a file-like `data=`) raises ``RuntimeError`` with a pointer to
+    the :ref:`ProcessPoolExecutor section <processpoolexecutor>` below,
+    chaining the original pickling error as ``__cause__``.
+  * Submitting **after** :meth:`~requests_futures.sessions.FuturesSession.close`
+    also raises synchronously, but the exact exception depends on how the
+    session was built:
+
+    * With the default, self-owned executor (no ``executor=`` supplied --
+      the common case), ``close()`` has already shut that executor down,
+      so the submit call itself raises ``RuntimeError('cannot schedule new
+      futures after shutdown')`` -- that message comes from
+      `concurrent.futures` itself, not from `requests-futures`. This is
+      true whether or not ``session=`` was also supplied.
+    * With a supplied ``executor=`` and no ``session=``, ``close()`` leaves
+      the executor running but rejects new submissions itself, with
+      ``RuntimeError('cannot schedule new futures after close')``.
+    * With both a supplied ``executor=`` *and* a supplied ``session=``,
+      ``close()`` never touches the executor, so submitting after
+      ``close()`` keeps working.
 
 * **At** :meth:`~concurrent.futures.Future.result` **time** -- everything
   else: connection errors, timeouts, non-2xx status codes (`requests` only
@@ -180,10 +195,17 @@ Sizing ``max_workers`` against the connection pool
 By default a session opens a :class:`~concurrent.futures.ThreadPoolExecutor`
 with 8 workers -- but `requests`' underlying connection pool
 (:data:`~requests.adapters.DEFAULT_POOLSIZE`, currently 10) is sized
-independently. If you raise `max_workers` past the pool size without also
-growing the pool, the extra worker threads end up blocking on a connection
-becoming free instead of running concurrently, which quietly defeats the
-point of using a thread pool in the first place.
+independently. With the default adapter settings (`pool_block=False`),
+raising `max_workers` past the pool size doesn't block the extra worker
+threads -- urllib3 just opens a fresh connection whenever the pool is
+empty. The cost instead is connection churn: a connection that's returned
+to an already-full pool gets closed and discarded rather than reused, so
+those extra workers pay a new TCP/TLS handshake on every request instead
+of reusing a warm connection. (Passing `pool_block=True` changes this to
+real blocking -- worker threads then wait for a pooled connection to free
+up instead of opening new ones -- which trades throughput for a hard cap
+on open connections.) Either way, an undersized pool quietly defeats the
+point of using a thread pool of that size in the first place.
 
 `FuturesSession` only protects you from this automatically when it creates
 the executor itself -- that is, whenever you *don't* pass `executor=`,
@@ -345,12 +367,26 @@ A hook can also be set once, on the session, rather than per-request:
     response = session.get('https://httpbin.org/get').result()
     print(response.data)
 
-Unlike `background_callback`, a hook's return value is ignored by
-`requests` itself (mutate the response instead, as above) -- but
-`FuturesSession` also keeps `background_callback` working under the hood
-by wrapping it in the module-level :func:`~requests_futures.sessions.wrap`,
-whose contract *is* to let the callback's return value replace the
-response, for `background_callback` callers migrating gradually.
+A response hook's return value has the same contract as
+`background_callback`'s: `requests`' own `dispatch_hook()` assigns a
+hook's return value back over the response whenever it isn't `None`, so
+returning something replaces the response for the rest of `Session.send`
+-- and therefore what `.result()` returns -- exactly like the module-level
+:func:`~requests_futures.sessions.wrap` does for `background_callback`.
+The examples above return nothing and mutate `response` in place, which is
+the common case, but a hook that returns a value works too:
+
+.. code-block:: python
+
+    def parse_json(response, *args, **kwargs):
+        # replaces the Response with its parsed body entirely
+        return response.json()
+
+
+    future = session.get(
+        'https://httpbin.org/get', hooks={'response': parse_json}
+    )
+    print(future.result())  # a dict, not a Response
 
 .. _processpoolexecutor:
 
@@ -374,6 +410,15 @@ In practice that means:
   object generally isn't.
 * A `FuturesSession` subclass used with a process pool must be defined at
   module scope so worker processes can import it.
+* The :class:`~requests.Response` itself has to travel back from the
+  worker process to the parent, and :meth:`~requests.Response.__getstate__`
+  only pickles the fixed set of attributes in
+  :attr:`~requests.Response.__attrs__` (``_content``, `status_code`,
+  `headers`, and so on) -- **not** arbitrary attributes a `hooks` callback
+  added, like the `response.data` from the earlier examples. Append the
+  attribute's name to `response.__attrs__` from inside the callback before
+  it returns, or it silently disappears when the response is unpickled in
+  the parent process.
 
 `FuturesSession` checks all of this up front and raises `RuntimeError` at
 submit time (see `Error handling across the future boundary`_) rather than
@@ -389,6 +434,9 @@ letting a raw pickling error surface later from `.result()`.
     # a lambda here would fail to pickle as soon as it's submitted.
     def parse_json(response, *args, **kwargs):
         response.data = response.json()
+        # required so the new `data` attribute survives being pickled back
+        # from the worker process -- see the bullet above
+        response.__attrs__.append('data')
 
 
     if __name__ == '__main__':

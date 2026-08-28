@@ -225,14 +225,28 @@ class FuturesSession(Session):
         This method itself never blocks and never raises for problems with
         the request -- connection errors, timeouts, and bad status codes all
         surface later, from the returned `Future`'s
-        :meth:`~concurrent.futures.Future.result`. The exceptions raised
-        directly from here are: the pickling `RuntimeError` above, and, for a
-        session constructed with a supplied `executor=` and no `session=`,
-        `RuntimeError` if called after :meth:`close` (that combination is the
-        only one where `close()` tracks pending futures and rejects new
-        ones; the other combinations either own the executor, where
-        `Executor.submit` itself raises once it is shut down, or delegate to
-        a supplied `session`, which `close()` never touches).
+        :meth:`~concurrent.futures.Future.result`. `RuntimeError` is raised
+        directly from here instead, in three cases:
+
+        * the pickling guard above;
+        * after :meth:`close` on a session with the default, self-owned
+          executor (no `executor=` supplied) -- `close()` shuts that
+          executor down, so this method's call to
+          :meth:`~concurrent.futures.Executor.submit` raises directly, with
+          `concurrent.futures`' own message ("cannot schedule new futures
+          after shutdown"). This applies whether or not `session=` was also
+          supplied, since `close()` shuts down any executor it owns either
+          way;
+        * after :meth:`close` on a session built with a supplied
+          `executor=` and no `session=` -- the only combination where
+          `close()` leaves the executor itself running but tracks pending
+          futures and rejects new ones itself, with its own message
+          ("cannot schedule new futures after close").
+
+        A session built with both a supplied `executor=` and a supplied
+        `session=` is never blocked by `close()` at all: `close()` only
+        closes the `FuturesSession`'s own connections in that case, and
+        leaves both the executor and the supplied session running.
 
         :rtype: concurrent.futures.Future
         """
