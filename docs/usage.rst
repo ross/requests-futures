@@ -367,26 +367,46 @@ A hook can also be set once, on the session, rather than per-request:
     response = session.get('https://httpbin.org/get').result()
     print(response.data)
 
-A response hook's return value has the same contract as
-`background_callback`'s: `requests`' own `dispatch_hook()` assigns a
-hook's return value back over the response whenever it isn't `None`, so
-returning something replaces the response for the rest of `Session.send`
--- and therefore what `.result()` returns -- exactly like the module-level
-:func:`~requests_futures.sessions.wrap` does for `background_callback`.
-The examples above return nothing and mutate `response` in place, which is
-the common case, but a hook that returns a value works too:
+A response hook's return value is *similar* to `background_callback`'s,
+but not quite identical: `requests`' own `dispatch_hook()` assigns a
+hook's return value back over the response whenever it isn't `None`, the
+same way the module-level :func:`~requests_futures.sessions.wrap` does for
+`background_callback`. The difference is *when* that happens. `wrap()`
+runs after ``Session.request()`` has already finished completely, so
+whatever `background_callback` returns becomes the `Future`'s result
+outright, with no further processing -- it can be any type, as the earlier
+example returning a parsed-JSON `dict` showed. A response hook, by
+contrast, is dispatched from partway through ``Session.send()``, which
+keeps running afterwards -- reading `history`, extracting cookies,
+following redirects if requested. **A non-`None` hook return value has to
+stay a real, usable** :class:`~requests.Response` **for that code to keep
+working**, so returning a parsed body or other arbitrary value from a
+response hook the way the earlier `background_callback` example did would
+raise partway through `Session.send()`, not deliver that value to
+`.result()`.
+
+Where this is useful is substituting a different, still-real response --
+for example, falling back to a cached or secondary response on error:
 
 .. code-block:: python
 
-    def parse_json(response, *args, **kwargs):
-        # replaces the Response with its parsed body entirely
-        return response.json()
+    import requests
+
+
+    def fall_back_on_error(response, *args, **kwargs):
+        if response.status_code >= 500:
+            # a real Response, fetched synchronously here on the
+            # background thread, replaces the failed one
+            return requests.get('https://httpbin.org/get')
+        # otherwise return None and keep the original response
 
 
     future = session.get(
-        'https://httpbin.org/get', hooks={'response': parse_json}
+        'https://httpbin.org/status/503',
+        hooks={'response': fall_back_on_error},
     )
-    print(future.result())  # a dict, not a Response
+    response = future.result()
+    print(response.status_code)  # 200, from the fallback request
 
 .. _processpoolexecutor:
 
@@ -415,10 +435,15 @@ In practice that means:
   only pickles the fixed set of attributes in
   :attr:`~requests.Response.__attrs__` (``_content``, `status_code`,
   `headers`, and so on) -- **not** arbitrary attributes a `hooks` callback
-  added, like the `response.data` from the earlier examples. Append the
+  added, like the `response.data` from the earlier examples. Add the
   attribute's name to `response.__attrs__` from inside the callback before
   it returns, or it silently disappears when the response is unpickled in
-  the parent process.
+  the parent process. `Response.__attrs__` is a plain class attribute
+  shared by every `Response` -- and, in a `ProcessPoolExecutor`, by every
+  request a reused worker process ever handles -- so replace it with a new
+  list (``response.__attrs__ = response.__attrs__ + ['data']``) rather
+  than calling `.append()` on it, which would mutate that shared list in
+  place and grow it by one duplicate entry on every single request.
 
 `FuturesSession` checks all of this up front and raises `RuntimeError` at
 submit time (see `Error handling across the future boundary`_) rather than
@@ -435,8 +460,11 @@ letting a raw pickling error surface later from `.result()`.
     def parse_json(response, *args, **kwargs):
         response.data = response.json()
         # required so the new `data` attribute survives being pickled back
-        # from the worker process -- see the bullet above
-        response.__attrs__.append('data')
+        # from the worker process -- see the bullet above. Assigning a new
+        # list, rather than calling .append() on the existing one, avoids
+        # mutating the class-level Response.__attrs__ shared by every
+        # response this (reused) worker process ever handles.
+        response.__attrs__ = response.__attrs__ + ['data']
 
 
     if __name__ == '__main__':
