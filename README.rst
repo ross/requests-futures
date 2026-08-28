@@ -80,10 +80,10 @@ FutureSession will use an existing session object if supplied:
 ``FuturesSession.close()`` waits for running requests and cancels queued ones
 before closing resources it owns. A supplied executor remains running and can
 be reused, but requests using ``FuturesSession``'s own connection pools are
-still drained. Once those pools are closed, the ``FuturesSession`` cannot be
-used for more requests. A supplied session is not closed automatically; when
-both an executor and session are supplied, their lifecycle remains the
-caller's responsibility.
+still drained, and the ``FuturesSession`` cannot be used for more requests once
+those pools are closed. A supplied session is not closed automatically; when
+both an executor and session are supplied, their lifecycle remains the caller's
+responsibility.
 
 That's it. The api of requests.Session is preserved without any modifications
 beyond returning a Future rather than Response. As with all futures exceptions
