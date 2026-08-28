@@ -50,6 +50,11 @@ dev = [
     "readme_renderer[rst]>=26.0",
     "twine>=3.4.2",
 ]
+docs = [
+    "sphinx>=8.1.0",
+    "sphinx-copybutton>=0.5.2",
+    "sphinx_rtd_theme",
+]
 
 [tool.setuptools.dynamic]
 version = {attr = "requests_futures.__version__"}
