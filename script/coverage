@@ -40,8 +40,6 @@ grep -r -I --line-number "# pragma: +no.*cover" $SOURCE_DIR && {
 
 export PYTHONPATH=.:$PYTHONPATH
 
-# TODO: 
-# --cov-fail-under=100 \
 pytest \
   --cov-reset \
   --cov=$SOURCE_DIR \
@@ -49,4 +47,5 @@ pytest \
   --cov-report=xml \
   --cov-report=term \
   --cov-branch \
+  --cov-fail-under=100 \
   "$@"
