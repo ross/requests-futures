@@ -13,7 +13,7 @@ import logging
 from logging import NullHandler
 
 __title__ = 'requests-futures'
-__version__ = '1.0.2'
+__version__ = '1.1.0'
 __author__ = 'Ross McFarland'
 __license__ = 'Apache 2.0'
 __copyright__ = 'Copyright 2013 Ross McFarland'
