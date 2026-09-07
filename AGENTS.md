@@ -41,8 +41,10 @@ checks from the worktree being committed.
 
 ## Architecture
 
-The entire library is `requests_futures/sessions.py` (~200 lines), built around one class,
-`FuturesSession(requests.Session)`:
+The core library is `requests_futures/sessions.py` (~200 lines), built around one class,
+`FuturesSession(requests.Session)`. `requests_futures/otel.py` is an optional companion
+module, gated behind the `otel` extra (`pip install requests-futures[otel]`) — see its own
+bullet below.
 
 - It overrides only `request()`, which submits the call to a `concurrent.futures` executor and returns
   a `Future` instead of a `Response`. The HTTP verb methods (`get`, `post`, etc.) are overridden purely
@@ -79,13 +81,30 @@ The entire library is `requests_futures/sessions.py` (~200 lines), built around 
   what makes OpenTelemetry span parenting (and any other `contextvars`-based state) work correctly
   through `FuturesSession`. It's skipped for `ProcessPoolExecutor`: a `Context` isn't picklable, and
   `contextvars` don't cross a process boundary anyway.
+- `requests_futures/otel.py`'s `FuturesSessionInstrumentor` closes the one gap the context-copy fix
+  above doesn't: a span created inside `Session.send` (by `opentelemetry-instrumentation-requests`)
+  only starts once a worker thread picks the request up, so time spent queued for a free worker is
+  invisible to it. `instrument()` monkey-patches `FuturesSession.request` (a guarded singleton,
+  mirroring `RequestsInstrumentor`'s shape by hand rather than subclassing OTel's
+  `BaseInstrumentor`, to avoid depending on `opentelemetry-instrumentation`, which has no stable
+  release) to open a span around the submit call and close it via `future.add_done_callback()` once
+  the `Future` resolves — covering the full submit → `result()` window, and becoming the parent of
+  the inner `Session.send` span since it's current while the context-copy's own `copy_context()`
+  runs. Depends only on the stable `opentelemetry-api`, never `opentelemetry-sdk` (test-only, per
+  OTel's own library-instrumentation guidance) or `opentelemetry-instrumentation`. No
+  `opentelemetry_instrumentor` entry point is registered, so `opentelemetry-instrument` zero-code
+  auto-discovery won't find it — `instrument()` must be called explicitly.
 
 Tests (`tests/test_requests_futures.py`) run against a local `pytest-httpbin` server injected by the
 `httpbin_on_class` autouse fixture as `self.httpbin` (used as `self.httpbin.join('get')`) — not a live
 network call, despite the module-level `HTTPBIN` env-var fallback constant. The `ProcessPoolExecutor`
 test cases require module-global callback functions and a module-global `FuturesSession` subclass
 (`TopLevelContextHelper`) because anything submitted to a process pool must be picklable — follow that
-pattern for any new process-pool test.
+pattern for any new process-pool test. `tests/test_otel.py` covers `otel.py`; there's no `conftest.py`
+in this repo, so it re-declares its own `httpbin_on_class` fixture rather than sharing one across test
+files. Because `FuturesSessionInstrumentor` is a singleton patching the shared `FuturesSession` class,
+every test there saves and force-restores `FuturesSession.request` (and the instrumentor's
+`_is_instrumented` flag) in `setUp`/`addCleanup`, independent of whatever the test itself does.
 
 Python support matrix is 3.10–3.14 (see the CI matrix in `.github/workflows/` and `requires-python` in
 `pyproject.toml`). The code still uses the py2-compatible `super(FuturesSession, self)` idiom rather
