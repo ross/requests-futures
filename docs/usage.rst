@@ -456,9 +456,10 @@ A couple of things this doesn't cover:
   doesn't start running until a worker thread is free. If all workers are
   busy, a span created inside `Session.send` only covers the time actually
   spent on the request, not the time spent queued waiting for a worker --
-  so it can under-report the latency the caller experienced. Wrap the
-  `get`/`post`/... call and the following `future.result()` in your own
-  span if you need that included.
+  so it can under-report the latency the caller experienced. See
+  `Closing the queueing-latency gap`_ below for the automated fix -- or
+  wrap the `get`/`post`/... call and the following `future.result()` in
+  your own span if you'd rather do it by hand.
 * :class:`~concurrent.futures.ProcessPoolExecutor` is not covered: a
   :class:`~contextvars.Context` can't be pickled, and `contextvars` don't
   cross a process boundary regardless, so requests submitted to a process
@@ -471,6 +472,42 @@ A couple of things this doesn't cover:
 
 .. _OpenTelemetry: https://opentelemetry.io/docs/languages/python/
 .. _opentelemetry-instrumentation-requests: https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/requests/requests.html
+
+Closing the queueing-latency gap
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Installing the ``otel`` extra (``pip install requests-futures[otel]``) pulls
+in :class:`~requests_futures.otel.FuturesSessionInstrumentor`, which
+automates the "wrap your own span" workaround mentioned above. Instrumenting
+it alongside `opentelemetry-instrumentation-requests`_ opens a span at
+*submit* time -- covering the queued-waiting-for-a-worker time the inner
+`Session.send` span misses -- and closes it once the `Future` resolves, so
+it becomes the parent of that inner span:
+
+.. code-block:: python
+
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+    from requests_futures.otel import FuturesSessionInstrumentor
+
+    RequestsInstrumentor().instrument()
+    FuturesSessionInstrumentor().instrument()
+
+    # every FuturesSession request now opens a span covering submit ->
+    # result(), parenting the inner Session.send span underneath it
+
+This is a first-party companion module, not a separate
+``opentelemetry-instrumentation-requests-futures`` package -- it only
+depends on the stable ``opentelemetry-api`` (never ``opentelemetry-sdk``,
+which is for exporting spans, not creating them), and is never installed by
+a plain ``pip install requests-futures``. It's deliberately hand-rolled
+rather than an :class:`opentelemetry.instrumentation.instrumentor.BaseInstrumentor`
+subclass, to avoid depending on ``opentelemetry-instrumentation``, which
+has no stable release; that also means there's no ``opentelemetry_instrumentor``
+entry point for `opentelemetry-instrument`_'s zero-code auto-discovery to
+find -- call :meth:`~requests_futures.otel.FuturesSessionInstrumentor.instrument`
+explicitly.
+
+.. _opentelemetry-instrument: https://opentelemetry.io/docs/zero-code/python/
 
 .. _processpoolexecutor:
 

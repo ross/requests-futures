@@ -32,15 +32,22 @@ Source = "https://github.com/ross/requests-futures"
 Issues = "https://github.com/ross/requests-futures/issues"
 
 [project.optional-dependencies]
+otel = [
+    "opentelemetry-api>=1.12",
+]
 test = [
     "pytest>=6.2.5",
     "pytest-cov>=3.0.0",
     "pytest-httpbin>=2.0.0",
+    "requests-futures[otel]",
+    "opentelemetry-sdk>=1.12",
 ]
 dev = [
     "pytest>=6.2.5",
     "pytest-cov>=3.0.0",
     "pytest-httpbin>=2.0.0",
+    "requests-futures[otel]",
+    "opentelemetry-sdk>=1.12",
     "black>=26.0.0,<27.0.0",
     "build>=0.7.0",
     "changelet",
@@ -54,6 +61,7 @@ docs = [
     "sphinx>=8.1.0",
     "sphinx-copybutton>=0.5.2",
     "sphinx_rtd_theme",
+    "requests-futures[otel]",
 ]
 
 [tool.setuptools.dynamic]
