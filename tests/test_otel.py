@@ -216,6 +216,30 @@ class OtelTestCase(TestCase):
         self.assertEqual(second_span.status.status_code, StatusCode.ERROR)
         self.assertEqual(second_span.status.description, 'cancelled')
 
+    def test_span_ends_when_submit_raises(self):
+        """request() can raise before returning a Future -- e.g. after
+        close() shuts the owned executor down -- and the span still has
+        to be ended, not leaked."""
+        _, _, exporter = self.instrument()
+        sess = self.make_session()
+        sess.close()
+
+        with self.assertRaises(RuntimeError):
+            sess.get(self.httpbin.join('get'))
+
+        # ended synchronously on this thread, no polling needed
+        spans = exporter.get_finished_spans()
+        self.assertEqual(len(spans), 1)
+        span = spans[0]
+        self.assertEqual(span.name, 'GET (queued)')
+        self.assertEqual(span.status.status_code, StatusCode.ERROR)
+        self.assertIn('RuntimeError', span.status.description)
+        exception_events = [e for e in span.events if e.name == 'exception']
+        self.assertEqual(len(exception_events), 1)
+        self.assertEqual(
+            exception_events[0].attributes['exception.type'], 'RuntimeError'
+        )
+
     def test_method_url_from_kwargs_only(self):
         _, _, exporter = self.instrument()
         sess = self.make_session()

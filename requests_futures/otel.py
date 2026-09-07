@@ -109,8 +109,31 @@ class FuturesSessionInstrumentor:
                 kind=SpanKind.INTERNAL,
                 attributes={'http.request.method': method, 'url.full': url},
             )
-            with trace.use_span(span, end_on_exit=False):
-                future = wrapped(session, *args, **kwargs)
+
+            def _record_exception(exc):
+                span.record_exception(exc)
+                span.set_status(
+                    Status(StatusCode.ERROR, f'{type(exc).__name__}: {exc}')
+                )
+
+            # use_span's own record_exception/set_status_on_exception are
+            # turned off and handled here instead: the wrapped request()
+            # can raise before it returns a Future -- the pickle guard, or
+            # scheduling after close()/shutdown -- and there'd then be no
+            # Future to hang the done callback on, so the span has to be
+            # ended right here or it leaks, never exported.
+            with trace.use_span(
+                span,
+                end_on_exit=False,
+                record_exception=False,
+                set_status_on_exception=False,
+            ):
+                try:
+                    future = wrapped(session, *args, **kwargs)
+                except BaseException as exc:
+                    _record_exception(exc)
+                    span.end()
+                    raise
 
             def _end_span(fut):
                 if fut.cancelled():
@@ -118,12 +141,7 @@ class FuturesSessionInstrumentor:
                 else:
                     exc = fut.exception()
                     if exc is not None:
-                        span.record_exception(exc)
-                        span.set_status(
-                            Status(
-                                StatusCode.ERROR, f'{type(exc).__name__}: {exc}'
-                            )
-                        )
+                        _record_exception(exc)
                 span.end()
 
             future.add_done_callback(_end_span)
