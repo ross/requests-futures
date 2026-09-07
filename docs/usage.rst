@@ -408,6 +408,70 @@ for example, falling back to a cached or secondary response on error:
     response = future.result()
     print(response.status_code)  # 200, from the fallback request
 
+Context propagation and tracing
+--------------------------------------------------
+
+Every request submitted to a `ThreadPoolExecutor` -- the default, and any
+custom one -- runs inside a copy of the calling thread's
+:mod:`contextvars` context, captured at the moment `get`/`post`/etc. is
+called. This matters because `contextvars` is per-thread and
+:meth:`~concurrent.futures.Executor.submit` does not propagate it on its
+own: without this, whatever a `ContextVar` holds on the thread that calls
+`session.get(...)` would simply be absent on the worker thread that
+actually runs the request.
+
+This is exactly the mechanism `OpenTelemetry`_'s Python SDK uses to track
+the "current span", so it's what makes tracing work correctly with
+`FuturesSession`. Instrumenting plain `requests` calls with
+`opentelemetry-instrumentation-requests`_ also instruments `FuturesSession`,
+since it patches ``requests.Session.send`` underneath:
+
+.. code-block:: python
+
+    from opentelemetry import trace
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+    from requests_futures.sessions import FuturesSession
+
+    RequestsInstrumentor().instrument()
+
+    tracer = trace.get_tracer(__name__)
+    session = FuturesSession()
+
+    with tracer.start_as_current_span('fetch'):
+        # the span created inside Session.send, on the worker thread, is a
+        # child of this one -- and the traceparent header injected into
+        # the outgoing request carries this trace, not a new one
+        future = session.get('https://httpbin.org/get')
+        response = future.result()
+
+Without the context copy, that span would come back as a new root span in
+its own trace, disconnected from ``'fetch'`` both locally and in whatever
+downstream service receives the request -- there would be no need for a
+separate ``opentelemetry-instrumentation-threading`` package to bridge
+`ThreadPoolExecutor`, since `FuturesSession` already does the copy itself.
+
+A couple of things this doesn't cover:
+
+* The copied context is captured at *submit* time, but the request itself
+  doesn't start running until a worker thread is free. If all workers are
+  busy, a span created inside `Session.send` only covers the time actually
+  spent on the request, not the time spent queued waiting for a worker --
+  so it can under-report the latency the caller experienced. Wrap the
+  `get`/`post`/... call and the following `future.result()` in your own
+  span if you need that included.
+* :class:`~concurrent.futures.ProcessPoolExecutor` is not covered: a
+  :class:`~contextvars.Context` can't be pickled, and `contextvars` don't
+  cross a process boundary regardless, so requests submitted to a process
+  pool run with that worker process's own, unrelated context.
+* Whatever the request mutates in its copy of the context -- setting a
+  `ContextVar` from inside a `hooks` callback, for instance -- stays local
+  to that one request: it's invisible to the caller once `future.result()`
+  returns, and to whatever unrelated request a reused worker thread
+  handles next.
+
+.. _OpenTelemetry: https://opentelemetry.io/docs/languages/python/
+.. _opentelemetry-instrumentation-requests: https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/requests/requests.html
+
 .. _processpoolexecutor:
 
 Using ``ProcessPoolExecutor``

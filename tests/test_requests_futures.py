@@ -5,6 +5,7 @@
 
 import logging
 from concurrent.futures import Future, ProcessPoolExecutor
+from contextvars import ContextVar
 from os.path import basename
 from threading import Event, Thread
 from time import monotonic, sleep
@@ -24,6 +25,8 @@ from requests_futures.sessions import PICKLE_ERROR, FuturesSession
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger('urllib3.connectionpool').level = logging.WARNING
+
+context_var = ContextVar('context_var', default='unset')
 
 
 @pytest.fixture(scope="class", autouse=True)
@@ -116,6 +119,70 @@ class RequestsTestCase(TestCase):
         self.assertIsInstance(resp, Response)
         self.assertEqual(200, resp.status_code)
         self.assertTrue(resp.hooked)
+
+    def test_contextvars_propagated_to_worker(self):
+        """A contextvar set by the caller -- the way an OpenTelemetry span
+        or a request id would be -- is visible on the worker thread that
+        actually runs the request."""
+        sess = self.make_session()
+        token = context_var.set('caller-value')
+        try:
+
+            def hook(response, *args, **kwargs):
+                response.seen = context_var.get()
+
+            future = sess.get(
+                self.httpbin.join('get'), hooks={'response': hook}
+            )
+            resp = future.result()
+            self.assertEqual('caller-value', resp.seen)
+        finally:
+            context_var.reset(token)
+
+    def test_contextvars_not_leaked_between_requests(self):
+        """Pool worker threads are reused across requests, so a contextvar
+        set while handling one request must not still be set for the next,
+        unrelated request that same worker picks up."""
+        sess = self.make_session(max_workers=1)
+        token = context_var.set('caller-value')
+        try:
+
+            def mutate(response, *args, **kwargs):
+                context_var.set('worker-mutated')
+
+            def observe(response, *args, **kwargs):
+                response.seen = context_var.get()
+
+            first = sess.get(
+                self.httpbin.join('get'), hooks={'response': mutate}
+            )
+            first.result()
+
+            second = sess.get(
+                self.httpbin.join('get'), hooks={'response': observe}
+            )
+            resp = second.result()
+            self.assertEqual('caller-value', resp.seen)
+        finally:
+            context_var.reset(token)
+
+    def test_contextvars_mutation_does_not_affect_caller(self):
+        """A contextvar mutated on the worker thread must not affect the
+        value the caller sees once the future resolves."""
+        sess = self.make_session()
+        token = context_var.set('caller-value')
+        try:
+
+            def mutate(response, *args, **kwargs):
+                context_var.set('worker-mutated')
+
+            future = sess.get(
+                self.httpbin.join('get'), hooks={'response': mutate}
+            )
+            future.result()
+            self.assertEqual('caller-value', context_var.get())
+        finally:
+            context_var.reset(token)
 
     def test_options(self):
         sess = self.make_session()

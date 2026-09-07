@@ -44,8 +44,8 @@ Quickstart
 See :doc:`usage` for the fuller picture: multiple requests with
 ``as_completed``, error handling across the future boundary, retries,
 sizing the worker pool, streaming, sharing an executor across sessions,
-``hooks``, ``ProcessPoolExecutor``, and the thread-safety caveats that come
-with sharing a ``Session``.
+``hooks``, context propagation and tracing, ``ProcessPoolExecutor``, and
+the thread-safety caveats that come with sharing a ``Session``.
 
 Documentation
 -------------

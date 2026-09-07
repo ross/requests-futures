@@ -178,6 +178,7 @@ https://requests-futures.readthedocs.io/:
   that configuration
 * ``hooks``, the recommended replacement for the deprecated
   ``background_callback``
+* context propagation and tracing, including OpenTelemetry
 * the full ``ProcessPoolExecutor`` guide
 * the full thread-safety discussion
 
