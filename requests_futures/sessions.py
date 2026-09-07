@@ -20,6 +20,7 @@ requests in the background using Python's built-in ``concurrent.futures``.
 """
 
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
+from contextvars import copy_context
 from functools import partial
 from pickle import dumps
 from threading import Lock
@@ -222,6 +223,14 @@ class FuturesSession(Session):
         or file-like `data=` raises `RuntimeError` here rather than a raw
         pickling error out of the returned `Future`.
 
+        Otherwise -- i.e. on a `ThreadPoolExecutor` -- the request runs
+        inside a copy of the calling thread's :mod:`contextvars` context,
+        captured at submit time. This makes an ambient OpenTelemetry span
+        (or any other `contextvars`-based state) visible to code that runs
+        on the worker thread, such as `opentelemetry-instrumentation-requests`'
+        span creation, without leaking any of it back to the caller or to
+        whatever unrelated request that worker thread picks up next.
+
         This method itself never blocks and never raises for problems with
         the request -- connection errors, timeouts, and bad status codes all
         surface later, from the returned `Future`'s
@@ -280,6 +289,18 @@ class FuturesSession(Session):
                 dumps((func, args, kwargs))
             except Exception as e:
                 raise RuntimeError(PICKLE_ERROR) from e
+        else:
+            # Run the request inside a copy of the calling thread's
+            # context, so contextvars set by the caller -- an
+            # OpenTelemetry span, a request id, structlog bindings -- are
+            # visible on the worker thread. concurrent.futures doesn't do
+            # this itself, and pool workers are reused, so without the
+            # copy a var set while handling one request would still be
+            # set for the next, unrelated request that worker picks up.
+            # ProcessPoolExecutor is excluded: a Context can't be
+            # pickled, and contextvars don't cross a process boundary
+            # anyway.
+            func = partial(copy_context().run, func)
 
         if self._owned_executor or self.session:
             return self.executor.submit(func, *args, **kwargs)

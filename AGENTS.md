@@ -72,6 +72,13 @@ The entire library is `requests_futures/sessions.py` (~200 lines), built around 
 - `background_callback` (invoked via `wrap()`) is deprecated in favor of requests' native `hooks`
   mechanism; it emits a `DeprecationWarning` via `warnings.warn()` (deduped/filterable by consumers,
   unlike a log line) and is kept for back-compat, targeted for removal in 2.0.
+- Context propagation: on a `ThreadPoolExecutor` (the `else` branch alongside the pickle guard),
+  `request()` wraps `func` in `partial(copy_context().run, func)`, so the request runs inside a copy
+  of the calling thread's `contextvars` context — `concurrent.futures` doesn't do this itself, and
+  reused pool workers would otherwise leak one request's contextvar mutations into the next. This is
+  what makes OpenTelemetry span parenting (and any other `contextvars`-based state) work correctly
+  through `FuturesSession`. It's skipped for `ProcessPoolExecutor`: a `Context` isn't picklable, and
+  `contextvars` don't cross a process boundary anyway.
 
 Tests (`tests/test_requests_futures.py`) run against a local `pytest-httpbin` server injected by the
 `httpbin_on_class` autouse fixture as `self.httpbin` (used as `self.httpbin.join('get')`) — not a live
