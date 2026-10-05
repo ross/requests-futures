@@ -325,9 +325,12 @@ class FuturesSession(Session):
                 with self._pending_futures_lock:
                     self._closed = True
                     pending_futures = tuple(self._pending_futures)
-                for future in pending_futures:
-                    future.cancel()
-                wait(pending_futures)
+                # Cancelled futures need an executor notification before wait()
+                # sees them. Shared workers can be busy with unrelated work.
+                running_futures = tuple(
+                    future for future in pending_futures if not future.cancel()
+                )
+                wait(running_futures)
                 super(FuturesSession, self).close()
                 return
             super(FuturesSession, self).close()

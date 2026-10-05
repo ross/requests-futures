@@ -322,12 +322,11 @@ down yourself, once every session sharing it is done with it:
     cdn_session.close()   # ditto for cdn_session
     executor.shutdown()   # now it's safe to stop the shared pool
 
-The exception is a session built with *both* a supplied `executor=` and no
-`session=`: for that one combination, `close()` still cancels and waits for
-that session's own queued futures (tracked separately per-session) before
-returning, without touching the executor itself -- see
-:meth:`requests_futures.sessions.FuturesSession.request` for exactly which
-combination that is.
+When `executor=` is supplied without `session=`, `close()` cancels this
+session's queued requests and waits for its running requests.
+It closes the session's connections after those requests finish.
+Work belonging to another session or caller does not delay `close()`, and
+the shared executor remains usable.
 
 ``hooks`` (the recommended replacement for ``background_callback``)
 ------------------------------------------------------------------------
