@@ -87,8 +87,11 @@ test cases require module-global callback functions and a module-global `Futures
 (`TopLevelContextHelper`) because anything submitted to a process pool must be picklable — follow that
 pattern for any new process-pool test.
 
-Python support matrix is 3.10–3.14 (see the CI matrix in `.github/workflows/` and `requires-python` in
-`pyproject.toml`). The code still uses the py2-compatible `super(FuturesSession, self)` idiom rather
+Python support matrix is 3.10–3.14 (see `requires-python` in `pyproject.toml`). CI doesn't hardcode
+versions: the workflows in `.github/workflows/` load them from octoDNS's shared
+[`.ci-config.json`](https://github.com/octodns/octodns/blob/main/.ci-config.json) —
+`python_versions_active` drives the test matrix and `python_version_current` the single-version jobs.
+When that list changes, update `requires-python` and the classifiers to match. The code still uses the py2-compatible `super(FuturesSession, self)` idiom rather
 than bare `super()` — match that existing style rather than
 modernizing it in unrelated changes.
 
