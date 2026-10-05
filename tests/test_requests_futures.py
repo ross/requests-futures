@@ -597,6 +597,87 @@ class RequestsTestCase(TestCase):
                 close_thread.join(timeout=1)
             executor.shutdown()
 
+    def test_close_does_not_wait_for_unrelated_shared_executor_work(self):
+        from concurrent.futures import ThreadPoolExecutor
+
+        for has_running_request in (False, True):
+            with self.subTest(has_running_request=has_running_request):
+                request_started = Event()
+                finish_request = Event()
+                request_finished = Event()
+                unrelated_started = Event()
+                finish_unrelated = Event()
+                queued_finished = Event()
+                adapter_closed = Event()
+                queued_sent = Event()
+                executor = ThreadPoolExecutor(max_workers=1)
+                session = FuturesSession(executor=executor)
+                close_thread = None
+
+                class TrackingAdapter(BaseAdapter):
+                    def send(self, request, **kwargs):
+                        if request.url == 'test://queued':
+                            queued_sent.set()
+                        request_started.set()
+                        finish_request.wait()
+                        request_finished.set()
+                        response = Response()
+                        response.request = request
+                        response.status_code = 200
+                        return response
+
+                    def close(self):
+                        adapter_closed.set()
+
+                def unrelated_work():
+                    unrelated_started.set()
+                    finish_unrelated.wait()
+                    return 'unrelated'
+
+                try:
+                    session.mount('test://', TrackingAdapter())
+                    if has_running_request:
+                        running = session.get('test://running')
+                        self.assertTrue(request_started.wait(timeout=1))
+                    unrelated = executor.submit(unrelated_work)
+                    if not has_running_request:
+                        self.assertTrue(unrelated_started.wait(timeout=1))
+                    queued = session.get('test://queued')
+                    queued.add_done_callback(lambda _: queued_finished.set())
+                    close_thread = Thread(target=session.close)
+                    close_thread.start()
+
+                    self.assertTrue(queued_finished.wait(timeout=1))
+                    self.assertTrue(queued.cancelled())
+                    if has_running_request:
+                        self.assertFalse(adapter_closed.is_set())
+                        finish_request.set()
+                        self.assertEqual(
+                            running.result(timeout=1).status_code, 200
+                        )
+                        self.assertTrue(request_finished.is_set())
+                        self.assertTrue(unrelated_started.wait(timeout=1))
+
+                    self.assertTrue(adapter_closed.wait(timeout=1))
+                    close_thread.join(timeout=1)
+                    self.assertFalse(close_thread.is_alive())
+                    self.assertFalse(queued_sent.is_set())
+                    self.assertFalse(unrelated.done())
+                    with self.assertRaisesRegex(RuntimeError, 'after close'):
+                        session.get('test://closed')
+                    finish_unrelated.set()
+                    self.assertEqual(unrelated.result(timeout=1), 'unrelated')
+                    self.assertTrue(
+                        executor.submit(lambda: True).result(timeout=1)
+                    )
+                finally:
+                    finish_request.set()
+                    finish_unrelated.set()
+                    if close_thread is not None:
+                        close_thread.join(timeout=1)
+                    executor.shutdown()
+                    session.close()
+
 
 # << test process pool executor >>
 # see discussion https://github.com/ross/requests-futures/issues/11
