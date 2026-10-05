@@ -4,7 +4,20 @@ on:
   workflow_dispatch:
 
 jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      json: ${{ steps.load.outputs.json }}
+    steps:
+    - id: load
+      run: |
+        {
+          echo 'json<<EOF'
+          curl -L https://github.com/octodns/octodns/raw/main/.ci-config.json
+          echo EOF
+        } >> $GITHUB_OUTPUT
   changelog:
+    needs: config
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,7 +26,7 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.14"
+          python-version: ${{ fromJson(needs.config.outputs.json).python_version_current }}
           architecture: x64
       - name: Setup environment
         run: |

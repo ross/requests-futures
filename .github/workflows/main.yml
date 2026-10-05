@@ -2,13 +2,25 @@ name: requests-futures
 on: [pull_request]
 
 jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      json: ${{ steps.load.outputs.json }}
+    steps:
+    - id: load
+      run: |
+        {
+          echo 'json<<EOF'
+          curl -L https://github.com/octodns/octodns/raw/main/.ci-config.json
+          echo EOF
+        } >> $GITHUB_OUTPUT
   ci:
+    needs: config
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # Tested versions based on dates in https://devguide.python.org/versions/#versions
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ${{ fromJson(needs.config.outputs.json).python_versions_active }}
     steps:
       - uses: actions/checkout@master
       - name: Setup python
@@ -25,25 +37,27 @@ jobs:
         run: |
           ./script/cibuild
   package:
+    needs: config
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Setup python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.13"
+          python-version: ${{ fromJson(needs.config.outputs.json).python_version_current }}
           architecture: x64
       - name: CI package build
         run: |
           ./script/cibuild-package
   docs:
+    needs: config
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Setup python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.13"
+          python-version: ${{ fromJson(needs.config.outputs.json).python_version_current }}
           architecture: x64
       - name: Bootstrap
         run: |
