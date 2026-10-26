@@ -6,7 +6,7 @@ babel==2.18.0
 backports-tarfile==1.2.0; python_version=='3.11'
 black==26.10.0
 blinker==1.9.0
-brotlicffi==1.2.0.2
+brotlicffi==1.2.1.0
 build==1.6.1
 certifi==2026.7.22
 cffi==2.1.1
